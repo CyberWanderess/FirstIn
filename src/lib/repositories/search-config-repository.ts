@@ -1,4 +1,5 @@
 import { getDb } from '@/lib/db';
+import { config } from '@/lib/config';
 import type { SearchConfig, SearchConfigInsert, SearchConfigUpdate } from '@/types';
 
 function deserializeConfig(row: Record<string, unknown>): SearchConfig {
@@ -29,7 +30,7 @@ export function insertSearchConfig(data: SearchConfigInsert): SearchConfig {
     VALUES (?, ?, ?, ?, ?)
   `).run(
     data.name,
-    data.platform ?? 'hiring_cafe',
+    data.platform ?? (config.enableCrawler ? 'hiring_cafe' : 'general'),
     JSON.stringify(data.query_params),
     data.schedule ?? null,
     data.enabled ?? 1,

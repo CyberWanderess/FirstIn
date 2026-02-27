@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ensureInitialized } from '@/lib/init';
+import { config } from '@/lib/config';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { StatusBadge } from '@/components/status-badge';
 import { JOB_STATUSES } from '@/types';
@@ -168,7 +169,7 @@ export default async function JobsPage({
                     >
                       {job.company_display_name}
                     </Link>
-                    {job.chinese_affinity ? (
+                    {config.enableChineseAffinity && job.chinese_affinity ? (
                       <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">中</span>
                     ) : null}
                   </div>

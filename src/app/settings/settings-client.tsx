@@ -16,25 +16,24 @@ async function fetchApi<T>(url: string, options?: RequestInit): Promise<{ succes
   return res.json();
 }
 
-const SETTING_SECTIONS: { label: string; keys: string[]; id: string }[] = [
+const SETTING_SECTIONS: { label: string; keys: string[]; id: string; crawlerOnly?: boolean }[] = [
   {
     id: 'filtering',
     label: 'Filtering & Evaluation',
     keys: ['no_h1b_action', 'job_no_visa_action', 'blocked_action', 'eval_score_threshold', 'archive_no_response_days'],
   },
-  // CRAWLER_SECTION_START
   {
     id: 'crawler',
     label: 'Crawler',
     keys: ['scrape_delay_ms', 'scrape_batch_size'],
+    crawlerOnly: true,
   },
-  // CRAWLER_SECTION_END
 ];
 
 const CATEGORIZED_KEYS = new Set(SETTING_SECTIONS.flatMap((s) => s.keys));
 const HIDDEN_KEYS = new Set(['resume_text', 'setup_completed']);
 
-export function SettingsClient({ initialSettings }: { initialSettings: Setting[] }) {
+export function SettingsClient({ initialSettings, enableCrawler = true }: { initialSettings: Setting[]; enableCrawler?: boolean }) {
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -234,7 +233,7 @@ export function SettingsClient({ initialSettings }: { initialSettings: Setting[]
       </div>
 
       {/* Categorized settings sections */}
-      {SETTING_SECTIONS.map((section) => {
+      {SETTING_SECTIONS.filter((s) => !s.crawlerOnly || enableCrawler).map((section) => {
         const sectionSettings = section.keys
           .map((key) => settings.find((s) => s.key === key))
           .filter((s): s is Setting => s !== undefined);

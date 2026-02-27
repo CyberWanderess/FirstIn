@@ -1,3 +1,4 @@
+import { config } from '@/lib/config';
 import { getDb } from '@/lib/db';
 import { findCompanyByName, updateCompany } from '@/lib/repositories/company-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
@@ -84,12 +85,14 @@ export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: n
       if (item.cooldown_months !== undefined) updateData.cooldown_months = item.cooldown_months;
 
       // Handle chinese_affinity (full three-state)
-      if (item.chinese_affinity === true) {
-        updateData.chinese_affinity = 1;
-      } else if (item.chinese_affinity === false) {
-        updateData.chinese_affinity = 0;
-      } else if (item.chinese_affinity === null) {
-        updateData.chinese_affinity = null;
+      if (config.enableChineseAffinity) {
+        if (item.chinese_affinity === true) {
+          updateData.chinese_affinity = 1;
+        } else if (item.chinese_affinity === false) {
+          updateData.chinese_affinity = 0;
+        } else if (item.chinese_affinity === null) {
+          updateData.chinese_affinity = null;
+        }
       }
 
       // Handle H1B sponsorship

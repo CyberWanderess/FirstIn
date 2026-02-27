@@ -259,6 +259,8 @@ function PromptTemplateSection() {
   );
 }
 
+const ENABLE_CRAWLER = process.env.NEXT_PUBLIC_ENABLE_CRAWLER !== 'false';
+
 function ImportSection() {
   const [inputMode, setInputMode] = useState<'text' | 'json'>('json');
   const [textMode, setTextMode] = useState<'normal' | 'viewall'>('normal');
@@ -382,28 +384,32 @@ function ImportSection() {
 
       <div className="bg-white border border-zinc-200 rounded-lg p-4 space-y-3">
         {/* Input mode tabs */}
-        <div className="flex gap-1 bg-zinc-100 rounded-md p-0.5 w-fit">
-          <button
-            onClick={() => setInputMode('text')}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              inputMode === 'text'
-                ? 'bg-white text-zinc-900 shadow-sm font-medium'
-                : 'text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            Paste Text
-          </button>
-          <button
-            onClick={() => setInputMode('json')}
-            className={`px-3 py-1 text-sm rounded-md transition-colors ${
-              inputMode === 'json'
-                ? 'bg-white text-zinc-900 shadow-sm font-medium'
-                : 'text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
-            Paste JSON
-          </button>
-        </div>
+        {ENABLE_CRAWLER ? (
+          <div className="flex gap-1 bg-zinc-100 rounded-md p-0.5 w-fit">
+            <button
+              onClick={() => setInputMode('text')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                inputMode === 'text'
+                  ? 'bg-white text-zinc-900 shadow-sm font-medium'
+                  : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              Paste Text
+            </button>
+            <button
+              onClick={() => setInputMode('json')}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                inputMode === 'json'
+                  ? 'bg-white text-zinc-900 shadow-sm font-medium'
+                  : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              Paste JSON
+            </button>
+          </div>
+        ) : (
+          <h2 className="font-semibold text-zinc-900 text-sm">Paste JSON</h2>
+        )}
 
         {/* Text mode options */}
         {inputMode === 'text' && (

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Merge main into release and strip crawler / personal files.
+# Merge main into release and strip crawler files.
+# Feature flags (ENABLE_CRAWLER, ENABLE_CHINESE_AFFINITY) handle logic toggling,
+# so this script only needs to delete crawler-specific files and dependencies.
 # Usage: bash scripts/prepare-release.sh
 set -euo pipefail
 
@@ -19,7 +21,7 @@ echo "=== Preparing release ==="
 git checkout release
 git merge main --no-edit
 
-# --- Remove crawler / personal files ---
+# --- Remove crawler-specific files ---
 FILES_TO_REMOVE=(
   scripts/crawl-extract.ts
   scripts/fetch-jd.ts
@@ -40,93 +42,33 @@ FILES_TO_REMOVE=(
 
 REMOVED=0
 for f in "${FILES_TO_REMOVE[@]}"; do
-  if git ls-files --error-unmatch "$f" &>/dev/null; then
+  if git ls-files --error-unmatch "$f" &>/dev/null 2>&1; then
     git rm -q "$f"
     ((REMOVED++))
   fi
 done
-echo "Removed $REMOVED files"
+echo "Removed $REMOVED crawler files"
 
-# --- Patch page.tsx: remove CrawlTrigger ---
-PAGE_FILE="src/app/page.tsx"
-if grep -q "CrawlTrigger" "$PAGE_FILE" 2>/dev/null; then
-  sed -i "/import.*CrawlTrigger/d" "$PAGE_FILE"
-  sed -i "s/const lastCrawl = recentOps.find((op) => op.operation === 'crawl');/const lastImport = recentOps.find((op) => op.operation === 'import');/" "$PAGE_FILE"
-  sed -i "s/Last crawl: {lastCrawl/Last import: {lastImport/g" "$PAGE_FILE"
-  sed -i "/<CrawlTrigger/d" "$PAGE_FILE"
-  sed -i 's/className="flex items-center justify-between flex-wrap gap-4"/className="flex items-center gap-6 text-sm text-zinc-600"/' "$PAGE_FILE"
-  echo "Patched page.tsx"
-fi
-
-# --- Patch package.json: remove playwright ---
+# --- Remove playwright dependency ---
 if grep -q '"playwright"' package.json; then
   sed -i '/"playwright"/d' package.json
-  npm install --silent 2>/dev/null
   echo "Removed playwright dependency"
 fi
 
-# --- Patch default platform ---
-sed -i "s/'hiring_cafe'/'general'/g" src/lib/repositories/search-config-repository.ts 2>/dev/null || true
-sed -i "s/'hiring_cafe'/'general'/g" src/lib/migrations/001_initial_schema.ts 2>/dev/null || true
-
-# --- Patch settings-client.tsx: remove crawler section ---
-SETTINGS_FILE="src/app/settings/settings-client.tsx"
-if grep -q "CRAWLER_SECTION_START" "$SETTINGS_FILE" 2>/dev/null; then
-  sed -i '/CRAWLER_SECTION_START/,/CRAWLER_SECTION_END/d' "$SETTINGS_FILE"
-  echo "Patched settings-client.tsx: removed crawler section"
+# --- Ensure .env.local has feature flags disabled ---
+ENV_FILE=".env.local"
+if [ ! -f "$ENV_FILE" ]; then
+  cp .env.example "$ENV_FILE" 2>/dev/null || true
 fi
+# Add flags if not present, then force values to false
+for KEY in ENABLE_CRAWLER ENABLE_CHINESE_AFFINITY NEXT_PUBLIC_ENABLE_CRAWLER; do
+  grep -q "^${KEY}=" "$ENV_FILE" 2>/dev/null || echo "${KEY}=false" >> "$ENV_FILE"
+  sed -i "s/^${KEY}=.*/${KEY}=false/" "$ENV_FILE"
+done
+echo "Feature flags set to false in $ENV_FILE"
 
-# --- Patch import page.tsx: remove Paste Text tab ---
-IMPORT_FILE="src/app/import/page.tsx"
-if grep -q "Paste Text" "$IMPORT_FILE" 2>/dev/null; then
-  sed -i "s/useState<'text' | 'json'>('json')/useState<'json'>('json')/" "$IMPORT_FILE"
-  echo "Patched import page: JSON-only mode"
-fi
-
-# --- Strip chinese_affinity feature ---
-echo "Stripping chinese_affinity..."
-
-# Delete migration file
-if git ls-files --error-unmatch src/lib/migrations/002_chinese_affinity.ts &>/dev/null; then
-  git rm -q src/lib/migrations/002_chinese_affinity.ts
-fi
-
-# runner.ts: remove migration002 import and registration
-sed -i "/import.*migration002.*002_chinese_affinity/d" src/lib/migrations/runner.ts
-sed -i "/002_chinese_affinity/d" src/lib/migrations/runner.ts
-
-# types/company.ts: remove chinese_affinity fields
-sed -i "/chinese_affinity/d" src/types/company.ts
-
-# types/job.ts: remove chinese_affinity field
-sed -i "/chinese_affinity/d" src/types/job.ts
-
-# job-repository.ts: remove c.chinese_affinity from SQL
-sed -i "s/, c\.chinese_affinity//g" src/lib/repositories/job-repository.ts
-
-# rule-engine.ts: remove chinese_affinity from Pick type and protect block
-sed -i "s/ | 'chinese_affinity'//g" src/lib/rule-engine.ts
-sed -i "/Chinese-affinity company/d" src/lib/rule-engine.ts
-sed -i "/company?.chinese_affinity/,+2d" src/lib/rule-engine.ts
-
-# company-exporter.ts: remove chinese_affinity from prompt
-sed -i 's/, "chinese_affinity": true\/null//' src/lib/export/company-exporter.ts
-sed -i "/chinese_affinity/d" src/lib/export/company-exporter.ts
-
-# company-importer.ts: remove chinese_affinity handling
-sed -i "/chinese_affinity/d" src/lib/export/company-importer.ts
-sed -i "/Handle chinese_affinity/,/^$/d" src/lib/export/company-importer.ts
-
-# jobs/page.tsx: remove 中 tag
-sed -i '/chinese_affinity/,/) : null}/d' src/app/jobs/page.tsx
-
-# Verify no remaining references
-REMAINING=$(grep -r "chinese_affinity" src/ --include="*.ts" --include="*.tsx" -l 2>/dev/null || true)
-if [ -n "$REMAINING" ]; then
-  echo "WARNING: chinese_affinity still found in: $REMAINING"
-else
-  echo "chinese_affinity stripped successfully"
-fi
+# --- Install dependencies ---
+npm install --silent 2>/dev/null || true
 
 # --- Commit ---
 git add -A

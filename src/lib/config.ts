@@ -15,6 +15,8 @@ export const config = {
   nodeEnv: optional('NODE_ENV', 'development'),
   port: parseInt(optional('PORT', '3000'), 10),
   baseUrl: process.env.BASE_URL || null,
+  enableCrawler: optional('ENABLE_CRAWLER', 'true') === 'true',
+  enableChineseAffinity: optional('ENABLE_CHINESE_AFFINITY', 'true') === 'true',
   get isDev() {
     return this.nodeEnv === 'development';
   },

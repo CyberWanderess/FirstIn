@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ensureInitialized } from '@/lib/init';
+import { config } from '@/lib/config';
 import { countJobsByStatus } from '@/lib/repositories/job-repository';
 import { getRecentOperations } from '@/lib/repositories/operation-log-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
@@ -30,8 +31,10 @@ export default function DashboardPage() {
   const readyToApply = statusCounts['ready_to_apply'] || 0;
   const newCount = statusCounts['new'] || 0;
 
-  // Find last crawl operation
-  const lastCrawl = recentOps.find((op) => op.operation === 'crawl');
+  // Find last crawl/import operation
+  const lastActivity = config.enableCrawler
+    ? recentOps.find((op) => op.operation === 'crawl')
+    : recentOps.find((op) => op.operation === 'import');
 
   const setupCompleted = getSetting('setup_completed', '') === 'true';
 
@@ -57,10 +60,10 @@ export default function DashboardPage() {
 
       {/* Notification banner */}
       <div className="bg-white border border-zinc-200 rounded-lg p-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className={`flex items-center ${config.enableCrawler ? 'justify-between flex-wrap gap-4' : 'gap-6 text-sm text-zinc-600'}`}>
           <div className="flex items-center gap-6 text-sm text-zinc-600">
             <span>
-              Last crawl: {lastCrawl ? new Date(lastCrawl.created_at).toLocaleString() : 'Never'}
+              {config.enableCrawler ? 'Last crawl' : 'Last import'}: {lastActivity ? new Date(lastActivity.created_at).toLocaleString() : 'Never'}
             </span>
             <span className="font-medium text-zinc-900">
               Total: {total} jobs
@@ -75,7 +78,7 @@ export default function DashboardPage() {
               <span className="text-green-600">Ready to apply: {readyToApply}</span>
             )}
           </div>
-          <CrawlTrigger />
+          {config.enableCrawler && <CrawlTrigger />}
         </div>
       </div>
 

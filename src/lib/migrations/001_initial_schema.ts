@@ -1,6 +1,8 @@
 import type Database from 'better-sqlite3';
+import { config } from '@/lib/config';
 
 export function migration001(db: Database.Database): void {
+  const defaultPlatform = config.enableCrawler ? 'hiring_cafe' : 'general';
   // Companies table
   db.exec(`
     CREATE TABLE companies (
@@ -90,7 +92,7 @@ export function migration001(db: Database.Database): void {
     CREATE TABLE search_configs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      platform TEXT NOT NULL DEFAULT 'hiring_cafe',
+      platform TEXT NOT NULL DEFAULT '${defaultPlatform}',
       query_params TEXT NOT NULL DEFAULT '{}',
       schedule TEXT,
       enabled INTEGER NOT NULL DEFAULT 1,

@@ -1,4 +1,5 @@
 import type { FilterRule, Company, JobInsert, RuleResult } from '@/types';
+import { config } from '@/lib/config';
 
 /**
  * Pure function: evaluates a job against company strategy + filter rules.
@@ -67,7 +68,7 @@ export function evaluateJob(
   let protectPriority = -1; // highest priority of matched protect rules
 
   // Chinese-affinity company: inject high-priority protect
-  if (company?.chinese_affinity) {
+  if (config.enableChineseAffinity && company?.chinese_affinity) {
     matched.push({ id: 0, name: `Company "${company.display_name}" is Chinese-affinity (protected)`, action: 'protect' });
     protectPriority = 100;
   }

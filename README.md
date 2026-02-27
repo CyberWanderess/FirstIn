@@ -94,6 +94,9 @@ npm start
 | `DATABASE_PATH` | Yes | — | Path to SQLite database file (e.g., `./data/jobhq.db`) |
 | `NODE_ENV` | No | `development` | Set to `production` for production builds |
 | `PORT` | No | `3000` | Server port |
+| `ENABLE_CRAWLER` | No | `true` | Enable crawler UI and API routes |
+| `ENABLE_CHINESE_AFFINITY` | No | `true` | Enable Chinese affinity tracking for companies |
+| `NEXT_PUBLIC_ENABLE_CRAWLER` | No | `true` | Client-side crawler feature toggle (must match `ENABLE_CRAWLER`) |
 
 ### Running as a Service
 

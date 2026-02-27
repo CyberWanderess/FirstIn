@@ -20,7 +20,7 @@ export function CrawlTrigger() {
     setResult(null);
 
     try {
-      const res = await fetch('/api/crawl/hiring-cafe', { method: 'POST' });
+      const res = await fetch('/api/crawl/source', { method: 'POST' });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Crawl failed');
       setResult(json.data);

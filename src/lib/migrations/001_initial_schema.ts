@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import { config } from '@/lib/config';
 
 export function migration001(db: Database.Database): void {
-  const defaultPlatform = config.enableCrawler ? 'hiring_cafe' : 'general';
+  const defaultPlatform = config.enableCrawler ? 'job_board' : 'general';
   // Companies table
   db.exec(`
     CREATE TABLE companies (

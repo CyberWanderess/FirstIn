@@ -106,7 +106,7 @@ function getDateRange(preset: string, customStart: string, customEnd: string): {
 
 function buildPrompt(mode: 'email_access' | 'manual', startDate: string, endDate: string): string {
   if (mode === 'email_access') {
-    return `Please visit my Gmail for the content of job alert emails from job platforms (Indeed, LinkedIn, Glassdoor, etc) received between ${startDate} and ${endDate}.
+    return `Please check my email for the content of job alert emails from job platforms (Indeed, LinkedIn, Glassdoor, etc) received between ${startDate} and ${endDate}.
 
 Extract every job listing and output strictly valid JSON.
 ${PROMPT_SHARED}
@@ -206,7 +206,7 @@ function PromptTemplateSection() {
 
           <p className="text-xs text-zinc-500">
             {mode === 'email_access'
-              ? 'The AI has access to your email (e.g. Gemini with Gmail). It will fetch job alert emails directly.'
+              ? 'The AI has access to your email. It will fetch job alert emails directly.'
               : 'You will manually copy and paste email content into the prompt before sending to AI.'}
           </p>
 

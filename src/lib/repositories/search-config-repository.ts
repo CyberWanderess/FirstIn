@@ -30,7 +30,7 @@ export function insertSearchConfig(data: SearchConfigInsert): SearchConfig {
     VALUES (?, ?, ?, ?, ?)
   `).run(
     data.name,
-    data.platform ?? (config.enableCrawler ? 'hiring_cafe' : 'general'),
+    data.platform ?? (config.enableCrawler ? 'job_board' : 'general'),
     JSON.stringify(data.query_params),
     data.schedule ?? null,
     data.enabled ?? 1,

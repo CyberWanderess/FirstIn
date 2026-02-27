@@ -24,8 +24,8 @@ All AI-powered features use a **prompt export/import** approach — you copy a p
 | **Dashboard** | Job pipeline overview with status counts and recent activity |
 | **Import** | Parse job listings from email alerts via AI prompt (Gmail integration or manual paste) |
 | **Rule Engine** | Configurable filters with exclude/include/flag/protect actions, regex, salary comparisons |
-| **Company Research** | AI-assisted company evaluation — H1B history, size, application strategy |
-| **Job Evaluation** | AI-assisted scoring — export prompt, get scores, import results |
+| **Company Research** | AI-assisted company evaluation — H1B history, size, application limits, interview cooldown periods |
+| **Job Evaluation** | AI-assisted scoring with 4-tier recommendations: proceed (tailored), mass_apply (volume/practice), skip, flag |
 | **Deep Analysis** | Detailed JD-resume matching with strengths, concerns, and recommendations |
 | **Visa Tracking** | Company-level H1B filtering + job-level visa sponsorship detection |
 | **Setup Wizard** | First-run configuration for visa preferences, resume, and filter rule templates |
@@ -37,7 +37,7 @@ After deploying and completing the Setup Wizard:
 1. **Set up job alerts** on Indeed, LinkedIn, Glassdoor, etc. — have them delivered to your email
 2. **Daily import** — Go to the Import page, copy the prompt template, paste it into your AI with your email content, then import the JSON output
 3. **Evaluate** — On the Evaluate page, export company research and job evaluation prompts, run them through your AI, and import the results
-4. **Apply strategically** — High-scoring jobs get tailored resumes and cover letters (use Deep Analysis for guidance). Lower-scoring jobs get quick applications or are skipped entirely
+4. **Apply strategically** — "proceed" jobs get tailored resumes and cover letters (use Deep Analysis for guidance). "mass_apply" jobs get quick volume applications for interview practice. Lower-scoring jobs are skipped
 
 ## Deployment
 

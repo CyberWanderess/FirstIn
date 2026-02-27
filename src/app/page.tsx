@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ensureInitialized } from '@/lib/init';
 import { countJobsByStatus } from '@/lib/repositories/job-repository';
 import { getRecentOperations } from '@/lib/repositories/operation-log-repository';
+import { getSetting } from '@/lib/repositories/settings-repository';
 import { CrawlTrigger } from '@/components/crawl-trigger';
 
 const STATUS_GROUPS = [
@@ -32,8 +33,28 @@ export default function DashboardPage() {
   // Find last crawl operation
   const lastCrawl = recentOps.find((op) => op.operation === 'crawl');
 
+  const setupCompleted = getSetting('setup_completed', '') === 'true';
+
   return (
     <div className="space-y-6">
+      {/* Setup banner */}
+      {!setupCompleted && (
+        <Link
+          href="/setup"
+          className="block bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition-colors"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-semibold text-blue-900">Welcome to JobHQ!</span>
+              <span className="text-sm text-blue-700 ml-2">
+                Complete initial setup to configure visa preferences, resume, and filter rules.
+              </span>
+            </div>
+            <span className="text-sm font-medium text-blue-600 shrink-0">Go to Setup &rarr;</span>
+          </div>
+        </Link>
+      )}
+
       {/* Notification banner */}
       <div className="bg-white border border-zinc-200 rounded-lg p-4">
         <div className="flex items-center justify-between flex-wrap gap-4">

@@ -63,7 +63,6 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
  */
 export function applyEvaluationResults(
   items: EvaluationItem[],
-  scoreThreshold: number,
 ): { updated: number; errors: string[] } {
   const db = getDb();
   let updated = 0;
@@ -82,9 +81,9 @@ export function applyEvaluationResults(
       if (item.recommendation === 'skip') {
         targetStatus = 'archived_low_match';
       } else if (item.recommendation === 'mass_apply') {
-        targetStatus = 'analyzed';
+        targetStatus = 'ready_to_apply';
       } else if (item.recommendation === 'proceed') {
-        targetStatus = item.score >= scoreThreshold ? 'pending_deep_analysis' : 'analyzed';
+        targetStatus = 'pending_deep_analysis';
       } else {
         // flag — keep current status, just update score
         const flagUpdate: Record<string, unknown> = {

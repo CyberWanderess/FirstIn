@@ -7,7 +7,7 @@ const STATUS_LABELS: Record<string, string> = {
   new: 'New',
   pending_eval: 'Pending Eval',
   pending_deep_analysis: 'Deep Analysis',
-  analyzed: 'Analyzed',
+  ready_to_apply_tailored: 'Tailored',
   ready_to_apply: 'Ready to Apply',
   applied: 'Applied',
   interviewing: 'Interviewing',

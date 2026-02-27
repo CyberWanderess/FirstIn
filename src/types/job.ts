@@ -2,7 +2,7 @@ export type JobStatus =
   | 'new'
   | 'pending_eval'
   | 'pending_deep_analysis'
-  | 'analyzed'
+  | 'ready_to_apply_tailored'
   | 'ready_to_apply'
   | 'applied'
   | 'interviewing'
@@ -13,7 +13,7 @@ export type JobStatus =
   | 'archived_no_response';
 
 export const JOB_STATUSES: readonly JobStatus[] = [
-  'new', 'pending_eval', 'pending_deep_analysis', 'analyzed',
+  'new', 'pending_eval', 'pending_deep_analysis', 'ready_to_apply_tailored',
   'ready_to_apply', 'applied', 'interviewing', 'offer', 'rejected',
   'archived_filtered', 'archived_low_match', 'archived_no_response',
 ] as const;

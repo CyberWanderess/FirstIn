@@ -2,9 +2,9 @@ import type { JobStatus } from '@/types';
 
 const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   new:                    ['pending_eval', 'archived_filtered'],
-  pending_eval:           ['pending_deep_analysis', 'archived_low_match', 'archived_filtered'],
-  pending_deep_analysis:  ['analyzed'],
-  analyzed:               ['ready_to_apply', 'archived_low_match'],
+  pending_eval:           ['pending_deep_analysis', 'ready_to_apply', 'archived_low_match', 'archived_filtered'],
+  pending_deep_analysis:  ['ready_to_apply_tailored'],
+  ready_to_apply_tailored: ['applied', 'archived_low_match'],
   ready_to_apply:         ['applied'],
   applied:                ['interviewing', 'rejected', 'archived_no_response'],
   interviewing:           ['offer', 'rejected'],

@@ -36,7 +36,6 @@ FILES_TO_REMOVE=(
   src/app/api/crawl/hiring-cafe/route.ts
   src/app/api/crawl/fetch-jd/route.ts
   src/app/api/import/parse/route.ts
-  src/components/crawl-trigger.tsx
   src/lib/parsers/hiring-cafe-parser.ts
 )
 

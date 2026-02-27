@@ -8,7 +8,7 @@ export interface EvaluationItem {
   id: number;
   score: number;
   score_reason: string;
-  recommendation: 'proceed' | 'skip' | 'flag';
+  recommendation: 'proceed' | 'mass_apply' | 'skip' | 'flag';
   h1b_sponsorship?: 'yes' | 'no' | 'unknown';
 }
 
@@ -40,8 +40,8 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
       warnings.push(`Item ${i + 1} (id=${item.id}): score must be 1-10`);
       continue;
     }
-    if (!['proceed', 'skip', 'flag'].includes(item.recommendation)) {
-      warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/skip/flag`);
+    if (!['proceed', 'mass_apply', 'skip', 'flag'].includes(item.recommendation)) {
+      warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/mass_apply/skip/flag`);
       continue;
     }
     const h1b = ['yes', 'no', 'unknown'].includes(item.h1b_sponsorship) ? item.h1b_sponsorship : undefined;
@@ -81,6 +81,8 @@ export function applyEvaluationResults(
       let targetStatus: JobStatus;
       if (item.recommendation === 'skip') {
         targetStatus = 'archived_low_match';
+      } else if (item.recommendation === 'mass_apply') {
+        targetStatus = 'analyzed';
       } else if (item.recommendation === 'proceed') {
         targetStatus = item.score >= scoreThreshold ? 'pending_deep_analysis' : 'analyzed';
       } else {

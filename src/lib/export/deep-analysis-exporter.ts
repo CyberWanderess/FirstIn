@@ -53,7 +53,7 @@ export function exportJobsForDeepAnalysis(
     '- **strengths**: Key reasons the candidate is a good fit for this role',
     '- **concerns**: Gaps, risks, or areas where the candidate may fall short',
     '- **jd_mapping**: Map each key JD requirement to the candidate\'s relevant experience or gap',
-    '- **recommendation**: "proceed" to move forward with application, "skip" to archive',
+    '- **recommendation**: "proceed" to move forward with tailored application, "mass_apply" for volume/practice applications, "skip" to archive',
     '- **analysis_summary**: Brief overall assessment of fit',
     '',
     '---',
@@ -64,6 +64,14 @@ export function exportJobsForDeepAnalysis(
     lines.push(`### Job #${job.id}: ${job.title} @ ${job.company_display_name}`);
     lines.push('');
     lines.push(`**Initial Eval:** Score ${job.score ?? '--'}/10 — ${job.score_reason || 'No reason provided'}`);
+    lines.push('');
+    lines.push('**Company Context:**');
+    lines.push(`- Industry: ${job.company_industry || 'Unknown'} | Size: ${job.company_size || 'Unknown'}`);
+    if (job.company_description) {
+      lines.push(`- Description: ${job.company_description}`);
+    }
+    lines.push(`- Application Limit: ${job.application_limit != null ? `${job.application_limit}/year` : 'Unknown'} | Cooldown: ${job.cooldown_months != null ? (job.cooldown_months === 0 ? 'None' : `${job.cooldown_months} months`) : 'Unknown'}`);
+    lines.push(`- Strategy: ${job.application_strategy}${job.strategy_reason ? ` (${job.strategy_reason})` : ''}`);
     lines.push('');
     lines.push('**Job Details:**');
     lines.push(`- Location: ${job.location.join(', ') || 'Not specified'}`);

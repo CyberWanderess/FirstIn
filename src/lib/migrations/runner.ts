@@ -4,6 +4,7 @@ import { migration002 } from './002_chinese_affinity';
 import { migration003 } from './003_deep_analysis';
 import { migration004 } from './004_visa_sponsorship';
 import { migration005 } from './005_apply_url';
+import { migration006 } from './006_company_cooldown';
 
 interface Migration {
   id: number;
@@ -17,6 +18,7 @@ const migrations: Migration[] = [
   { id: 3, name: '003_deep_analysis', up: migration003 },
   { id: 4, name: '004_visa_sponsorship', up: migration004 },
   { id: 5, name: '005_apply_url', up: migration005 },
+  { id: 6, name: '006_company_cooldown', up: migration006 },
 ];
 
 export function runMigrations(db: Database.Database): void {

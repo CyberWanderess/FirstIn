@@ -16,7 +16,8 @@ export function findJobById(id: number): JobWithCompany | null {
   const db = getDb();
   const row = db.prepare(`
     SELECT j.*, c.name as company_name, c.display_name as company_display_name,
-           c.application_strategy, c.strategy_reason, c.application_limit, c.chinese_affinity
+           c.industry as company_industry, c.size as company_size, c.description as company_description, c.ai_summary as company_ai_summary,
+           c.application_strategy, c.strategy_reason, c.application_limit, c.cooldown_months, c.chinese_affinity
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     WHERE j.id = ?
@@ -81,7 +82,8 @@ export function listJobs(options: {
 
   const rows = db.prepare(`
     SELECT j.*, c.name as company_name, c.display_name as company_display_name,
-           c.application_strategy, c.strategy_reason, c.application_limit, c.chinese_affinity
+           c.industry as company_industry, c.size as company_size, c.description as company_description, c.ai_summary as company_ai_summary,
+           c.application_strategy, c.strategy_reason, c.application_limit, c.cooldown_months, c.chinese_affinity
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     ${where}
@@ -175,7 +177,8 @@ export function getRecentJobs(limit = 10): JobWithCompany[] {
   const db = getDb();
   const rows = db.prepare(`
     SELECT j.*, c.name as company_name, c.display_name as company_display_name,
-           c.application_strategy, c.strategy_reason, c.application_limit, c.chinese_affinity
+           c.industry as company_industry, c.size as company_size, c.description as company_description, c.ai_summary as company_ai_summary,
+           c.application_strategy, c.strategy_reason, c.application_limit, c.cooldown_months, c.chinese_affinity
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
     ORDER BY j.created_at DESC

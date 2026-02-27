@@ -10,6 +10,8 @@ export interface CompanyResearchItem {
   description?: string;
   sponsors_h1b?: boolean | null;
   chinese_affinity?: boolean | null;
+  application_limit?: number | null;
+  cooldown_months?: number | null;
   ai_summary?: string;
 }
 
@@ -44,6 +46,8 @@ export function parseCompanyResearch(jsonText: string): ParseResult<CompanyResea
       description: item.description || undefined,
       sponsors_h1b: item.sponsors_h1b ?? null,
       chinese_affinity: item.chinese_affinity ?? null,
+      application_limit: typeof item.application_limit === 'number' ? item.application_limit : null,
+      cooldown_months: typeof item.cooldown_months === 'number' ? item.cooldown_months : null,
       ai_summary: item.ai_summary || undefined,
     });
   }
@@ -76,6 +80,8 @@ export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: n
       if (item.size) updateData.size = item.size;
       if (item.description) updateData.description = item.description;
       if (item.ai_summary) updateData.ai_summary = item.ai_summary;
+      if (item.application_limit !== undefined) updateData.application_limit = item.application_limit;
+      if (item.cooldown_months !== undefined) updateData.cooldown_months = item.cooldown_months;
 
       // Handle chinese_affinity (full three-state)
       if (item.chinese_affinity === true) {

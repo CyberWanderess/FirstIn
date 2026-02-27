@@ -9,7 +9,7 @@ export interface DeepAnalysisItem {
   strengths: string[];
   concerns: string[];
   jd_mapping: Record<string, string>;
-  recommendation: 'proceed' | 'skip';
+  recommendation: 'proceed' | 'mass_apply' | 'skip';
   analysis_summary: string;
 }
 
@@ -34,8 +34,8 @@ export function parseDeepAnalysis(jsonText: string): ParseResult<DeepAnalysisIte
       warnings.push(`Item ${i + 1}: missing or invalid "id" field`);
       continue;
     }
-    if (!['proceed', 'skip'].includes(item.recommendation)) {
-      warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/skip`);
+    if (!['proceed', 'mass_apply', 'skip'].includes(item.recommendation)) {
+      warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/mass_apply/skip`);
       continue;
     }
     items.push({
@@ -66,7 +66,7 @@ export function applyDeepAnalysis(items: DeepAnalysisItem[]): { updated: number;
 
       const targetStatus: JobStatus = item.recommendation === 'skip'
         ? 'archived_low_match'
-        : 'analyzed';
+        : 'analyzed'; // both 'proceed' and 'mass_apply' go to analyzed
 
       const validation = validateTransition(job.status as JobStatus, targetStatus);
       if (!validation.valid) {

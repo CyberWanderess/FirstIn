@@ -18,6 +18,7 @@ export interface Company {
   application_strategy: ApplicationStrategy;
   strategy_reason: string | null;
   application_limit: number | null;
+  cooldown_months: number | null;
   info_status: CompanyInfoStatus;
   chinese_affinity: number | null;
   notes: string | null;
@@ -36,6 +37,7 @@ export interface CompanyInsert {
   application_strategy?: ApplicationStrategy;
   strategy_reason?: string | null;
   application_limit?: number | null;
+  cooldown_months?: number | null;
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;
@@ -51,6 +53,7 @@ export interface CompanyUpdate {
   application_strategy?: ApplicationStrategy;
   strategy_reason?: string | null;
   application_limit?: number | null;
+  cooldown_months?: number | null;
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;

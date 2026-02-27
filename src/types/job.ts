@@ -50,9 +50,14 @@ export interface Job {
 export interface JobWithCompany extends Job {
   company_name: string;
   company_display_name: string;
+  company_industry: string | null;
+  company_size: string | null;
+  company_description: string | null;
+  company_ai_summary: string | null;
   application_strategy: string;
   strategy_reason: string | null;
   application_limit: number | null;
+  cooldown_months: number | null;
   chinese_affinity: number | null;
 }
 

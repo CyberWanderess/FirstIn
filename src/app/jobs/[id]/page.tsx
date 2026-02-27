@@ -69,9 +69,9 @@ export default async function JobDetailPage({
               </span>
             </div>
           </div>
-          {job.jd_url && (
+          {(job.apply_url || job.jd_url) && (
             <a
-              href={job.jd_url}
+              href={job.apply_url || job.jd_url!}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-blue-600 hover:underline shrink-0"

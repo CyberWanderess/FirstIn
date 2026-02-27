@@ -96,9 +96,9 @@ export function insertJob(data: JobInsert & { company_id: number }): Job {
   const db = getDb();
   const result = db.prepare(`
     INSERT INTO jobs (company_id, title, location, salary_min, salary_max,
-      work_mode, commitment, jd_url, jd_full_text, jd_fetch_status,
+      work_mode, commitment, jd_url, apply_url, jd_full_text, jd_fetch_status,
       jd_content_hash, source, source_id, status, score, score_reason, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.company_id,
     data.title,
@@ -108,6 +108,7 @@ export function insertJob(data: JobInsert & { company_id: number }): Job {
     data.work_mode ?? null,
     data.commitment ?? null,
     data.jd_url ?? null,
+    data.apply_url ?? null,
     data.jd_full_text ?? null,
     data.jd_fetch_status ?? 'pending',
     data.jd_content_hash ?? null,

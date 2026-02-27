@@ -71,6 +71,10 @@ export function exportJobsForDeepAnalysis(
     lines.push(`- Work Mode: ${job.work_mode || 'Not specified'} | Commitment: ${job.commitment || 'Not specified'}`);
     lines.push('');
 
+    if (job.apply_url) {
+      lines.push(`**Apply URL:** ${job.apply_url}`);
+    }
+
     if (job.jd_full_text) {
       lines.push('**Full Job Description:**');
       lines.push(job.jd_full_text);

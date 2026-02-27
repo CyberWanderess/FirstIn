@@ -30,6 +30,7 @@ export interface Job {
   work_mode: string | null;
   commitment: string | null;
   jd_url: string | null;
+  apply_url: string | null;
   jd_full_text: string | null;
   jd_fetch_status: JdFetchStatus;
   jd_content_hash: string | null;
@@ -65,6 +66,7 @@ export interface JobInsert {
   work_mode?: string | null;
   commitment?: string | null;
   jd_url?: string | null;
+  apply_url?: string | null;
   jd_full_text?: string | null;
   jd_fetch_status?: JdFetchStatus;
   jd_content_hash?: string | null;
@@ -86,6 +88,7 @@ export interface JobUpdate {
   work_mode?: string | null;
   commitment?: string | null;
   jd_url?: string | null;
+  apply_url?: string | null;
   jd_full_text?: string | null;
   jd_fetch_status?: JdFetchStatus;
   jd_content_hash?: string | null;

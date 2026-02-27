@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
             work_mode: item.work_mode,
             commitment: item.commitment,
             jd_url: item.jd_url,
+            apply_url: item.apply_url,
             jd_full_text: item.jd_full_text,
             jd_fetch_status: item.jd_full_text ? 'success' : 'pending',
             jd_content_hash: item.jd_full_text ? hashContent(item.jd_full_text) : null,

@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DB_PATH="$PROJECT_DIR/data/jobhq.db"
-BACKUP_PATH="$PROJECT_DIR/data/jobhq-backup.db"
-R2_REMOTE="r2:jobhq-data/db"
+BACKUP_PATH="$PROJECT_DIR/data/firstin-backup.db"
+R2_REMOTE="r2:firstin-data/db"
 
 if [ ! -f "$DB_PATH" ]; then
   echo "Database not found at $DB_PATH"
@@ -22,7 +22,7 @@ echo "Pushed to $R2_REMOTE/"
 
 # Optional daily snapshot
 if [ "${1:-}" = "--snapshot" ]; then
-  SNAPSHOT_NAME="jobhq-$(date +%Y%m%d).db"
+  SNAPSHOT_NAME="firstin-$(date +%Y%m%d).db"
   rclone copyto "$BACKUP_PATH" "$R2_REMOTE/snapshots/$SNAPSHOT_NAME"
   echo "Snapshot: $R2_REMOTE/snapshots/$SNAPSHOT_NAME"
 fi

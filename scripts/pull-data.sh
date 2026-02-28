@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DATA_DIR="$PROJECT_DIR/data"
-R2_REMOTE="r2:jobhq-data/db"
+R2_REMOTE="r2:firstin-data/db"
 
 mkdir -p "$DATA_DIR"
 

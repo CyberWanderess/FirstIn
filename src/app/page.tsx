@@ -48,7 +48,7 @@ export default function DashboardPage() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-semibold text-blue-900">Welcome to JobHQ!</span>
+              <span className="font-semibold text-blue-900">Welcome to FirstIn!</span>
               <span className="text-sm text-blue-700 ml-2">
                 Complete initial setup to configure visa preferences, resume, and filter rules.
               </span>

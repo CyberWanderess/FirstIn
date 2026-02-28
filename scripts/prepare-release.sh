@@ -33,7 +33,7 @@ FILES_TO_REMOVE=(
   src/lib/scraper/hiring-cafe-crawler.ts
   src/lib/scraper/hiring-cafe-extractor.ts
   src/lib/scraper/hiring-cafe-stealth.ts
-  src/app/api/crawl/hiring-cafe/route.ts
+  src/app/api/crawl/source/route.ts
   src/app/api/crawl/fetch-jd/route.ts
   src/app/api/import/parse/route.ts
   src/lib/parsers/hiring-cafe-parser.ts
@@ -74,9 +74,7 @@ git add -A
 if git diff --cached --quiet; then
   echo "No changes to commit (release is up to date)"
 else
-  git commit -m "Update release from main
-
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+  git commit -m "Update release from main"
   echo "Release branch updated!"
 fi
 

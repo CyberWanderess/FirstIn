@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
 import { ensureInitialized } from '@/lib/init';
-import { applyDeepAnalysis } from '@/lib/export/deep-analysis-importer';
+import { applyDeepAnalysis, type DeepAnalysisItem } from '@/lib/export/deep-analysis-importer';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
-import { jsonResponse, errorResponse } from '@/lib/api-utils';
+import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
 export async function POST(req: NextRequest) {
   ensureInitialized();
   try {
-    const body = await req.json();
+    const body = await parseJsonBody<{ items: DeepAnalysisItem[] }>(req);
     const items = body.items;
     if (!Array.isArray(items)) {
       return errorResponse('Missing "items" array', 400);

@@ -86,7 +86,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
         {STATUS_GROUPS.map((group) => {
           const count = group.statuses.reduce((sum, s) => sum + (statusCounts[s] || 0), 0);
-          const statusParam = group.statuses.length === 1 ? group.statuses[0] : group.statuses[0];
+          const statusParam = group.statuses.join(',');
           return (
             <Link
               key={group.label}

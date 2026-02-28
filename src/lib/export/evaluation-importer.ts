@@ -44,7 +44,8 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
       warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/mass_apply/skip/flag`);
       continue;
     }
-    const h1b = ['yes', 'no', 'unknown'].includes(item.h1b_sponsorship) ? item.h1b_sponsorship : undefined;
+    const rawH1b = ['yes', 'no', 'unknown'].includes(item.h1b_sponsorship) ? item.h1b_sponsorship : undefined;
+    const h1b = rawH1b === 'unknown' ? undefined : rawH1b;
     items.push({
       id: item.id,
       score: item.score,

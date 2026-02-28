@@ -16,10 +16,9 @@ export function logOperation(data: OperationLogInsert): void {
 }
 
 function deserializeLog(row: Record<string, unknown>): OperationLog {
-  return {
-    ...row,
-    details: JSON.parse(row.details as string || '{}'),
-  } as OperationLog;
+  let details: Record<string, unknown>;
+  try { details = JSON.parse(row.details as string || '{}'); } catch { details = {}; }
+  return { ...row, details } as OperationLog;
 }
 
 export function getEntityHistory(entityType: string, entityId: number, limit = 50): OperationLog[] {

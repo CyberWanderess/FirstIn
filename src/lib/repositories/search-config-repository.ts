@@ -3,11 +3,11 @@ import { config } from '@/lib/config';
 import type { SearchConfig, SearchConfigInsert, SearchConfigUpdate } from '@/types';
 
 function deserializeConfig(row: Record<string, unknown>): SearchConfig {
-  return {
-    ...row,
-    query_params: JSON.parse(row.query_params as string || '{}'),
-    last_run_result: row.last_run_result ? JSON.parse(row.last_run_result as string) : null,
-  } as SearchConfig;
+  let query_params: Record<string, unknown>;
+  let last_run_result: Record<string, unknown> | null;
+  try { query_params = JSON.parse(row.query_params as string || '{}'); } catch { query_params = {}; }
+  try { last_run_result = row.last_run_result ? JSON.parse(row.last_run_result as string) : null; } catch { last_run_result = null; }
+  return { ...row, query_params, last_run_result } as SearchConfig;
 }
 
 export function listSearchConfigs(onlyEnabled = false): SearchConfig[] {

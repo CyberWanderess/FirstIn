@@ -18,15 +18,6 @@ const RULE_TEMPLATES: Record<string, FilterRuleInsert[]> = {
     { name: 'Exclude part-time/temporary', field: 'commitment', operator: 'regex', value: 'Part Time|Temporary', action: 'exclude', priority: 96 },
     { name: 'Flag contract roles', field: 'commitment', operator: 'eq', value: 'Contract', action: 'flag', priority: 50 },
   ],
-  swe: [
-    { name: 'Exclude non-SWE titles', field: 'title', operator: 'not_contains', value: 'engineer,developer,architect,sre,devops,platform', action: 'exclude', priority: 80 },
-  ],
-  pm: [
-    { name: 'Exclude non-PM titles', field: 'title', operator: 'not_contains', value: 'program manager,project manager,product manager,pmo,scrum master,delivery manager', action: 'exclude', priority: 80 },
-  ],
-  ds: [
-    { name: 'Exclude non-DS titles', field: 'title', operator: 'not_contains', value: 'data scientist,machine learning,ml engineer,data engineer,analytics,ai researcher', action: 'exclude', priority: 80 },
-  ],
 };
 
 export async function POST(req: NextRequest) {

@@ -5,8 +5,9 @@ import { findCompanyById } from '@/lib/repositories/company-repository';
 import { listRules } from '@/lib/repositories/rule-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
+import { validateTransition } from '@/lib/status-machine';
 import { jsonResponse, errorResponse } from '@/lib/api-utils';
-import type { Job } from '@/types';
+import type { Job, JobStatus } from '@/types';
 
 export async function POST() {
   ensureInitialized();
@@ -41,11 +42,14 @@ export async function POST() {
       );
 
       if (result.action === 'exclude') {
-        updateJob(job.id, {
-          status: 'archived_filtered',
-          notes: `Filtered: ${result.reason}`,
-        });
-        excluded++;
+        const validation = validateTransition(job.status as JobStatus, 'archived_filtered');
+        if (validation.valid) {
+          updateJob(job.id, {
+            status: 'archived_filtered',
+            notes: `Filtered: ${result.reason}`,
+          });
+          excluded++;
+        }
       }
     }
 

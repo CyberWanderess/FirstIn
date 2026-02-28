@@ -6,10 +6,9 @@ function serializeLocation(location: string[]): string {
 }
 
 function deserializeJob(row: Record<string, unknown>): JobWithCompany {
-  return {
-    ...row,
-    location: JSON.parse(row.location as string || '[]'),
-  } as JobWithCompany;
+  let location: string[];
+  try { location = JSON.parse(row.location as string || '[]'); } catch { location = []; }
+  return { ...row, location } as JobWithCompany;
 }
 
 export function findJobById(id: number): JobWithCompany | null {
@@ -43,8 +42,14 @@ export function listJobs(options: {
   const params: unknown[] = [];
 
   if (options.status) {
-    conditions.push('j.status = ?');
-    params.push(options.status);
+    const statuses = options.status.split(',').map(s => s.trim()).filter(Boolean);
+    if (statuses.length === 1) {
+      conditions.push('j.status = ?');
+      params.push(statuses[0]);
+    } else {
+      conditions.push(`j.status IN (${statuses.map(() => '?').join(',')})`);
+      params.push(...statuses);
+    }
   }
   if (options.companyId) {
     conditions.push('j.company_id = ?');
@@ -99,8 +104,9 @@ export function insertJob(data: JobInsert & { company_id: number }): Job {
   const result = db.prepare(`
     INSERT INTO jobs (company_id, title, location, salary_min, salary_max,
       work_mode, commitment, jd_url, apply_url, jd_full_text, jd_fetch_status,
-      jd_content_hash, source, source_id, status, score, score_reason, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      jd_content_hash, source, source_id, status, score, score_reason, notes,
+      visa_sponsorship, deep_analysis)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     data.company_id,
     data.title,
@@ -120,6 +126,8 @@ export function insertJob(data: JobInsert & { company_id: number }): Job {
     data.score ?? null,
     data.score_reason ?? null,
     data.notes ?? null,
+    data.visa_sponsorship ?? null,
+    data.deep_analysis ?? null,
   );
 
   return findJobById(result.lastInsertRowid as number)! as Job;

@@ -10,7 +10,8 @@ import type { JobInsert } from '@/types';
 export async function POST(req: NextRequest) {
   ensureInitialized();
   try {
-    const body = await parseJsonBody<JobInsert & { company?: string }>(req);
+    const raw = await parseJsonBody<{ job?: JobInsert & { company?: string } } & JobInsert & { company?: string }>(req);
+    const body = raw.job ?? raw;
     if (!body.title) return errorResponse('title is required for testing');
 
     const rules = listRules(true);

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# JobHQ deployment script for Ubuntu 22/24 and macOS.
+# FirstIn deployment script for Ubuntu 22/24 and macOS.
 # Usage: bash scripts/deploy.sh
 set -euo pipefail
 
-echo "=== JobHQ Deployment ==="
+echo "=== FirstIn Deployment ==="
 
 # --- Detect OS ---
 OS="unknown"
@@ -89,7 +89,7 @@ echo "  npm start"
 echo ""
 echo "For production use, consider running with pm2:"
 echo "  npm install -g pm2"
-echo "  pm2 start npm --name jobhq -- start"
+echo "  pm2 start npm --name firstin -- start"
 echo "  pm2 save"
 echo "  pm2 startup  # auto-start on reboot"
 echo ""

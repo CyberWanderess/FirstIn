@@ -1,10 +1,10 @@
-# JobHQ
+# FirstIn
 
 A self-hosted job search automation platform — track, evaluate, and prioritize job opportunities with AI-assisted analysis.
 
 ## About
 
-JobHQ was built to solve one core problem: **submitting quality applications as early as possible**. Being an early applicant dramatically increases your chances, but manually tracking hundreds of listings across Indeed, LinkedIn, and Glassdoor is unsustainable.
+FirstIn was built to solve one core problem: **submitting quality applications as early as possible**. Being an early applicant dramatically increases your chances, but manually tracking hundreds of listings across Indeed, LinkedIn, and Glassdoor is unsustainable.
 
 This tool helps you:
 
@@ -51,8 +51,8 @@ After deploying and completing the Setup Wizard:
 ### Quick Start
 
 ```bash
-git clone <repo-url> jobhq
-cd jobhq
+git clone <repo-url> firstin
+cd firstin
 bash scripts/deploy.sh
 ```
 
@@ -104,28 +104,28 @@ npm start
 
 ```bash
 npm install -g pm2
-pm2 start npm --name jobhq -- start
+pm2 start npm --name firstin -- start
 pm2 save
 pm2 startup   # auto-start on reboot
 ```
 
 #### With systemd
 
-Create `/etc/systemd/system/jobhq.service`:
+Create `/etc/systemd/system/firstin.service`:
 
 ```ini
 [Unit]
-Description=JobHQ
+Description=FirstIn
 After=network.target
 
 [Service]
 Type=simple
 User=www-data
-WorkingDirectory=/opt/jobhq
+WorkingDirectory=/opt/firstin
 ExecStart=/usr/bin/npm start
 Restart=on-failure
 Environment=NODE_ENV=production
-Environment=DATABASE_PATH=/opt/jobhq/data/jobhq.db
+Environment=DATABASE_PATH=/opt/firstin/data/jobhq.db
 Environment=PORT=3000
 
 [Install]
@@ -133,8 +133,8 @@ WantedBy=multi-user.target
 ```
 
 ```bash
-sudo systemctl enable jobhq
-sudo systemctl start jobhq
+sudo systemctl enable firstin
+sudo systemctl start firstin
 ```
 
 ### Reverse Proxy (nginx)
@@ -142,7 +142,7 @@ sudo systemctl start jobhq
 ```nginx
 server {
     listen 80;
-    server_name jobhq.example.com;
+    server_name firstin.example.com;
 
     location / {
         proxy_pass http://127.0.0.1:3000;

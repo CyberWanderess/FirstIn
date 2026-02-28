@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JobHQ",
+  title: "FirstIn",
   description: "Job search automation platform",
 };
 
@@ -41,7 +41,7 @@ export default function RootLayout({
         <nav className="bg-white border-b border-zinc-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex h-14 items-center gap-8">
-              <Link href="/" className="font-bold text-lg text-zinc-900">JobHQ</Link>
+              <Link href="/" className="font-bold text-lg text-zinc-900">FirstIn</Link>
               <div className="flex gap-1">
                 {NAV_ITEMS.map((item) => (
                   <Link

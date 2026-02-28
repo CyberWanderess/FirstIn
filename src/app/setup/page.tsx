@@ -72,7 +72,7 @@ export default function SetupPage() {
 
   return (
     <div className="max-w-2xl mx-auto py-12 px-4">
-      <h1 className="text-2xl font-bold text-zinc-900 mb-2">Welcome to JobHQ</h1>
+      <h1 className="text-2xl font-bold text-zinc-900 mb-2">Welcome to FirstIn</h1>
       <p className="text-sm text-zinc-500 mb-8">Let&apos;s configure a few things to get started. You can change these later in Settings.</p>
 
       {/* Step indicator */}
@@ -102,7 +102,7 @@ export default function SetupPage() {
           <>
             <h2 className="text-lg font-semibold text-zinc-900">Do you need H1B visa sponsorship?</h2>
             <p className="text-sm text-zinc-500">
-              This determines how JobHQ handles companies that don&apos;t sponsor H1B visas.
+              This determines how FirstIn handles companies that don&apos;t sponsor H1B visas.
             </p>
             <div className="space-y-3 pt-2">
               <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-zinc-50 transition-colors">

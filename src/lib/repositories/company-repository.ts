@@ -92,8 +92,9 @@ export function insertCompany(data: CompanyInsert): Company {
   const name = normalizeCompanyName(data.name);
   const result = db.prepare(`
     INSERT INTO companies (name, display_name, website, industry, size, description, ai_summary,
-      application_strategy, strategy_reason, application_limit, info_status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      application_strategy, strategy_reason, application_limit, info_status, notes,
+      chinese_affinity, cooldown_months)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     name,
     data.display_name,
@@ -107,6 +108,8 @@ export function insertCompany(data: CompanyInsert): Company {
     data.application_limit ?? null,
     data.info_status ?? 'pending',
     data.notes ?? null,
+    data.chinese_affinity ?? null,
+    data.cooldown_months ?? null,
   );
 
   return findCompanyById(result.lastInsertRowid as number)!;

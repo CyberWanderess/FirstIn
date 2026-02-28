@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getDb();
-    const stmt = db.prepare('UPDATE rules SET priority = ?, updated_at = datetime(\'now\') WHERE id = ?');
+    const stmt = db.prepare('UPDATE filter_rules SET priority = ? WHERE id = ?');
 
     db.transaction(() => {
       for (const item of body.priorities) {

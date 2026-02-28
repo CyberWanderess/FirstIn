@@ -4,15 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type VisaStatus = 'need_h1b' | 'no_need' | 'skip';
-type RuleTemplate = 'basic' | 'swe' | 'pm' | 'ds';
+type RuleTemplate = 'basic';
 
 const STEPS = ['Visa Status', 'Resume', 'Filter Rules'] as const;
 
 const TEMPLATE_INFO: { id: RuleTemplate; label: string; description: string }[] = [
   { id: 'basic', label: 'Basic Filters (Recommended)', description: 'Exclude junior/intern, part-time/temporary roles. Flag contract positions.' },
-  { id: 'swe', label: 'Software Engineering', description: 'Focus on engineering roles: engineer, developer, architect, SRE, DevOps, platform.' },
-  { id: 'pm', label: 'Program / Product Management', description: 'Focus on PM roles: program manager, project manager, product manager, PMO, scrum master.' },
-  { id: 'ds', label: 'Data Science / ML', description: 'Focus on data roles: data scientist, ML engineer, data engineer, analytics, AI researcher.' },
 ];
 
 export default function SetupPage() {

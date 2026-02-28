@@ -126,7 +126,8 @@ export default async function JobDetailPage({
 
       {/* Deep Analysis */}
       {job.deep_analysis && (() => {
-        const da = JSON.parse(job.deep_analysis);
+        let da;
+        try { da = JSON.parse(job.deep_analysis); } catch { return null; }
         return (
           <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">

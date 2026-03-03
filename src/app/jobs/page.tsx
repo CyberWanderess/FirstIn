@@ -122,16 +122,16 @@ export default async function JobsPage({
                       )}
                     </Link>
                     {config.enableChineseAffinity && job.chinese_affinity ? (
-                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 shrink-0">中</span>
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 shrink-0">Affinity</span>
                     ) : null}
                     {job.cooldown_months != null && job.cooldown_months > 0 && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
-                        冷冻{job.cooldown_months}月
+                        {job.cooldown_months}mo CD
                       </span>
                     )}
                     {job.application_limit != null && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
-                        限{job.application_limit}次
+                        {job.application_limit}/yr
                       </span>
                     )}
                   </div>

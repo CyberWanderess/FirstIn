@@ -43,6 +43,6 @@ next-env.d.ts
 .env.local
 data/
 
-# personal / research files
+# local-only files
 Outside/
 research.md

@@ -8,7 +8,11 @@ function serializeLocation(location: string[]): string {
 function deserializeJob(row: Record<string, unknown>): JobWithCompany {
   let location: string[];
   try { location = JSON.parse(row.location as string || '[]'); } catch { location = []; }
-  return { ...row, location } as JobWithCompany;
+  let score_tags: string[] | null = null;
+  if (row.score_tags) {
+    try { score_tags = JSON.parse(row.score_tags as string); } catch { score_tags = null; }
+  }
+  return { ...row, location, score_tags } as JobWithCompany;
 }
 
 export function findJobById(id: number): JobWithCompany | null {
@@ -79,18 +83,28 @@ export function listJobs(options: {
     SELECT COUNT(*) as count FROM jobs j JOIN companies c ON j.company_id = c.id ${where}
   `).get(...params) as { count: number }).count;
 
-  const allowedSorts = ['created_at', 'updated_at', 'title', 'salary_max', 'score', 'status_changed_at'];
-  const sort = allowedSorts.includes(options.sort || '') ? `j.${options.sort}` : 'j.created_at';
+  const allowedSorts = ['created_at', 'updated_at', 'title', 'salary_max', 'score', 'status_changed_at', 'company_name'];
+  const sortKey = allowedSorts.includes(options.sort || '') ? options.sort! : 'created_at';
+  const sort = sortKey === 'company_name' ? 'c.display_name' : `j.${sortKey}`;
   const order = options.order === 'ASC' ? 'ASC' : 'DESC';
   const limit = options.limit ?? 50;
   const offset = options.offset ?? 0;
 
   const rows = db.prepare(`
+    WITH company_counts AS (
+      SELECT company_id,
+             COUNT(*) as company_total_jobs,
+             COUNT(*) FILTER (WHERE status NOT LIKE 'archived%' AND status != 'rejected') as company_active_jobs
+      FROM jobs
+      GROUP BY company_id
+    )
     SELECT j.*, c.name as company_name, c.display_name as company_display_name,
            c.industry as company_industry, c.size as company_size, c.description as company_description, c.ai_summary as company_ai_summary,
-           c.application_strategy, c.strategy_reason, c.application_limit, c.cooldown_months, c.chinese_affinity
+           c.application_strategy, c.strategy_reason, c.application_limit, c.cooldown_months, c.chinese_affinity,
+           cc.company_active_jobs, cc.company_total_jobs
     FROM jobs j
     JOIN companies c ON j.company_id = c.id
+    LEFT JOIN company_counts cc ON cc.company_id = j.company_id
     ${where}
     ORDER BY ${sort} ${order}
     LIMIT ? OFFSET ?
@@ -143,6 +157,9 @@ export function updateJob(id: number, data: JobUpdate): Job | null {
       if (key === 'location') {
         fields.push('location = ?');
         params.push(serializeLocation(value as string[]));
+      } else if (key === 'score_tags') {
+        fields.push('score_tags = ?');
+        params.push(value ? JSON.stringify(value) : null);
       } else if (key === 'status') {
         fields.push('status = ?', `status_changed_at = datetime('now')`);
         params.push(value);

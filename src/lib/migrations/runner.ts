@@ -7,6 +7,7 @@ import { migration005 } from './005_apply_url';
 import { migration006 } from './006_company_cooldown';
 import { migration007 } from './007_rename_analyzed_status';
 import { migration008 } from './008_reset_mass_apply_candidates';
+import { migration009 } from './009_score_tags';
 
 interface Migration {
   id: number;
@@ -23,6 +24,7 @@ const migrations: Migration[] = [
   { id: 6, name: '006_company_cooldown', up: migration006 },
   { id: 7, name: '007_rename_analyzed_status', up: migration007 },
   { id: 8, name: '008_reset_mass_apply_candidates', up: migration008 },
+  { id: 9, name: '009_score_tags', up: migration009 },
 ];
 
 export function runMigrations(db: Database.Database): void {

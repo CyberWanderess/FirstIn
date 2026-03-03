@@ -2,21 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-const STATUS_LABELS: Record<string, string> = {
-  new: 'New',
-  pending_eval: 'Pending Eval',
-  pending_deep_analysis: 'Deep Analysis',
-  ready_to_apply_tailored: 'Tailored',
-  ready_to_apply: 'Ready to Apply',
-  applied: 'Applied',
-  interviewing: 'Interviewing',
-  offer: 'Offer',
-  rejected: 'Rejected',
-  archived_filtered: 'Archived (Filtered)',
-  archived_low_match: 'Archived (Low Match)',
-  archived_no_response: 'Archived (No Response)',
-};
+import { STATUS_LABELS } from '@/types';
 
 export function JobStatusTransitions({
   jobId,

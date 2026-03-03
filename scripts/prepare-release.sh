@@ -27,7 +27,8 @@ trap cleanup EXIT
 echo "=== Preparing release (worktree: $WORKTREE_DIR) ==="
 git worktree add "$WORKTREE_DIR" release
 cd "$WORKTREE_DIR"
-git merge main --allow-unrelated-histories --no-edit -X theirs
+git -c user.name="FirstIn Release Bot" -c user.email="noreply@firstin.dev" \
+  merge main --allow-unrelated-histories --no-edit -X theirs
 
 # --- Remove crawler-specific files ---
 FILES_TO_REMOVE=(

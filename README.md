@@ -51,7 +51,7 @@ After deploying and completing the Setup Wizard:
 ### Quick Start
 
 ```bash
-git clone <repo-url> firstin
+git clone https://github.com/CyberWanderess/FirstIn.git firstin
 cd firstin
 bash scripts/deploy.sh
 ```
@@ -194,6 +194,35 @@ src/
 data/
   jobhq.db       # SQLite database (created at runtime)
 ```
+
+## Changelog
+
+### v0.3.0 — Job List Overhaul & Testing (2026-03-03)
+
+- **Multi-select filters** — filter jobs by status, score, and tags simultaneously
+- **Score tags** — visual tags (e.g. `proceed`, `mass_apply`, `skip`) on job cards
+- **Manual archive** — archive/unarchive jobs directly from the list with reason tracking
+- **Unit tests** — added Vitest framework with 119 tests covering rule engine, exporters, and importers
+- **PII protection** — release pipeline now auto-scans for personal data and uses anonymous git author
+- **English-only UI** — all user-facing text standardized to English for release
+
+### v0.2.0 — Evaluation & Company Research (2026-02-28)
+
+- **Project rename** — JobHQ → FirstIn
+- **Company cooldown** — configurable interview cooldown periods per company
+- **Mass apply tier** — 4-tier scoring: proceed, mass_apply, skip, flag
+- **Deep analysis** — detailed JD-resume matching with strengths/concerns
+- **Visa tracking** — company-level H1B filtering + job-level visa sponsorship
+- **Feature flags** — `ENABLE_CRAWLER` / `ENABLE_CHINESE_AFFINITY` for release configuration
+
+### v0.1.0 — Initial Release
+
+- Dashboard, job list, company management
+- Rule engine with exclude/include/flag/protect actions
+- AI prompt export/import workflow (zero API cost)
+- Setup wizard for first-run configuration
+- SQLite database with migration system
+- Deploy script + pm2/systemd support
 
 ## Credits
 

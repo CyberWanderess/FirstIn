@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useClickOutside } from '@/hooks/use-click-outside';
 
 const ARCHIVE_REASONS = [
-  { label: '职位失效', value: '职位失效' },
-  { label: 'Skill 不 match', value: 'Skill不match' },
-  { label: '谨慎投递', value: '谨慎投递' },
-  { label: '身份不 match', value: '身份不match' },
+  { label: 'Position Expired', value: 'Position Expired' },
+  { label: 'Skill Mismatch', value: 'Skill Mismatch' },
+  { label: 'Cautious Apply', value: 'Cautious Apply' },
+  { label: 'Eligibility Mismatch', value: 'Eligibility Mismatch' },
 ];
 
 export function ArchiveButton({ jobId }: { jobId: number }) {
@@ -27,7 +27,7 @@ export function ArchiveButton({ jobId }: { jobId: number }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: 'archived_manual',
-          notes: `[手动归档] ${reason}`,
+          notes: `[Manual Archive] ${reason}`,
         }),
       });
       if (!res.ok) {

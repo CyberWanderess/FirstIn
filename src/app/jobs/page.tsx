@@ -3,7 +3,9 @@ import { ensureInitialized } from '@/lib/init';
 import { config } from '@/lib/config';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { StatusBadge } from '@/components/status-badge';
-import { JOB_STATUSES } from '@/types';
+import { ExpandableReason } from '@/components/expandable-reason';
+import { JobFilterBar } from '@/components/job-filter-bar';
+import { ArchiveButton } from '@/components/archive-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +40,9 @@ export default async function JobsPage({
   ensureInitialized();
   const params = await searchParams;
 
-  const status = params.status || undefined;
+  const DEFAULT_STATUSES = 'pending_eval,pending_deep_analysis,ready_to_apply_tailored,ready_to_apply';
+  const rawStatus = params.status ?? DEFAULT_STATUSES;
+  const status = rawStatus === 'all' ? undefined : rawStatus;
   const q = params.q || undefined;
   const sort = params.sort || 'created_at';
   const order = params.order || 'DESC';
@@ -63,67 +67,12 @@ export default async function JobsPage({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="bg-white border border-zinc-200 rounded-lg p-4">
-        <form className="flex flex-wrap items-center gap-3">
-          <select
-            name="status"
-            defaultValue={status || ''}
-            className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
-          >
-            <option value="">All statuses</option>
-            {JOB_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
-
-          <input
-            name="q"
-            type="text"
-            placeholder="Search jobs or companies..."
-            defaultValue={q || ''}
-            className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm flex-1 min-w-48"
-          />
-
-          <select
-            name="sort"
-            defaultValue={sort}
-            className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
-          >
-            <option value="created_at">Date Added</option>
-            <option value="updated_at">Last Updated</option>
-            <option value="score">Score</option>
-            <option value="salary_max">Salary</option>
-            <option value="status_changed_at">Status Changed</option>
-          </select>
-
-          <select
-            name="order"
-            defaultValue={order}
-            className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
-          >
-            <option value="DESC">Desc</option>
-            <option value="ASC">Asc</option>
-          </select>
-
-          <button
-            type="submit"
-            className="px-4 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors"
-          >
-            Filter
-          </button>
-
-          {(status || q) && (
-            <Link
-              href="/jobs"
-              className="px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-700"
-            >
-              Clear
-            </Link>
-          )}
-        </form>
-      </div>
+      <JobFilterBar
+        initialStatus={status}
+        initialQ={q}
+        initialSort={sort}
+        initialOrder={order}
+      />
 
       {/* Results count */}
       <div className="text-sm text-zinc-500">
@@ -168,10 +117,23 @@ export default async function JobsPage({
                       className="text-zinc-700 hover:text-zinc-900"
                     >
                       {job.company_display_name}
+                      {job.company_total_jobs != null && job.company_total_jobs > 1 && (
+                        <span className="text-zinc-400 text-xs ml-0.5">({job.company_active_jobs}/{job.company_total_jobs})</span>
+                      )}
                     </Link>
                     {config.enableChineseAffinity && job.chinese_affinity ? (
-                      <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-blue-100 text-blue-700 shrink-0">中</span>
+                      <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 shrink-0">中</span>
                     ) : null}
+                    {job.cooldown_months != null && job.cooldown_months > 0 && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
+                        冷冻{job.cooldown_months}月
+                      </span>
+                    )}
+                    {job.application_limit != null && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
+                        限{job.application_limit}次
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2.5">
@@ -188,7 +150,7 @@ export default async function JobsPage({
                 <td className="px-4 py-2.5 text-zinc-600">
                   {formatSalary(job.salary_min, job.salary_max)}
                 </td>
-                <td className="px-4 py-2.5 text-zinc-600">
+                <td className="px-4 py-2.5 text-zinc-600 max-w-28 truncate" title={job.location.join(', ')}>
                   {job.location.length > 0 ? job.location.join(', ') : '--'}
                 </td>
                 <td className="px-4 py-2.5">
@@ -201,9 +163,16 @@ export default async function JobsPage({
                       <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-green-100 text-green-700 shrink-0">Visa OK</span>
                     )}
                   </div>
+                  {!job.status.startsWith('archived') && job.status !== 'offer' && job.status !== 'rejected' && job.status !== 'interviewing' && (
+                    <ArchiveButton jobId={job.id} />
+                  )}
                 </td>
-                <td className="px-4 py-2.5 text-zinc-400 max-w-48 truncate" title={[job.score_reason, job.notes].filter(Boolean).join('\n---\n') || ''}>
-                  {job.score_reason || job.notes || '--'}
+                <td className="px-4 py-2.5">
+                  <ExpandableReason
+                    scoreReason={job.score_reason}
+                    notes={job.notes}
+                    scoreTags={job.score_tags}
+                  />
                 </td>
                 <td className="px-4 py-2.5 text-zinc-500">
                   {formatDate(job.created_at)}

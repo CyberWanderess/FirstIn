@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { ensureInitialized } from '@/lib/init';
 import { applyEvaluationResults, type EvaluationItem } from '@/lib/export/evaluation-importer';
-import { getSettingNumber } from '@/lib/repositories/settings-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
@@ -13,8 +12,7 @@ export async function POST(req: NextRequest) {
       return errorResponse('items array is required');
     }
 
-    const threshold = getSettingNumber('eval_score_threshold', 7);
-    const result = applyEvaluationResults(body.items, threshold);
+    const result = applyEvaluationResults(body.items);
 
     logOperation({
       operation: 'evaluate',

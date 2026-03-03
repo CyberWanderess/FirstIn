@@ -66,7 +66,7 @@ export function applyDeepAnalysis(items: DeepAnalysisItem[]): { updated: number;
 
       const targetStatus: JobStatus = item.recommendation === 'skip'
         ? 'archived_low_match'
-        : 'analyzed'; // both 'proceed' and 'mass_apply' go to analyzed
+        : 'ready_to_apply_tailored';
 
       const validation = validateTransition(job.status as JobStatus, targetStatus);
       if (!validation.valid) {

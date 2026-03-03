@@ -3,11 +3,13 @@ import { findJobById, updateJob } from '@/lib/repositories/job-repository';
 import { validateTransition } from '@/lib/status-machine';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import type { JobStatus, ParseResult } from '@/types';
+import { SCORE_TAGS } from '@/types';
 
 export interface EvaluationItem {
   id: number;
   score: number;
   score_reason: string;
+  score_tags?: string[];
   recommendation: 'proceed' | 'mass_apply' | 'skip' | 'flag';
   h1b_sponsorship?: 'yes' | 'no' | 'unknown';
 }
@@ -46,10 +48,14 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
     }
     const rawH1b = ['yes', 'no', 'unknown'].includes(item.h1b_sponsorship) ? item.h1b_sponsorship : undefined;
     const h1b = rawH1b === 'unknown' ? undefined : rawH1b;
+    const score_tags = Array.isArray(item.score_tags)
+      ? item.score_tags.filter((t: unknown) => typeof t === 'string' && (SCORE_TAGS as readonly string[]).includes(t))
+      : undefined;
     items.push({
       id: item.id,
       score: item.score,
       score_reason: item.score_reason || '',
+      score_tags: score_tags?.length ? score_tags : undefined,
       recommendation: item.recommendation,
       h1b_sponsorship: h1b,
     });
@@ -64,7 +70,6 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
  */
 export function applyEvaluationResults(
   items: EvaluationItem[],
-  scoreThreshold: number,
 ): { updated: number; errors: string[] } {
   const db = getDb();
   let updated = 0;
@@ -83,9 +88,9 @@ export function applyEvaluationResults(
       if (item.recommendation === 'skip') {
         targetStatus = 'archived_low_match';
       } else if (item.recommendation === 'mass_apply') {
-        targetStatus = 'analyzed';
+        targetStatus = 'ready_to_apply';
       } else if (item.recommendation === 'proceed') {
-        targetStatus = item.score >= scoreThreshold ? 'pending_deep_analysis' : 'analyzed';
+        targetStatus = 'pending_deep_analysis';
       } else {
         // flag — keep current status, just update score
         const flagUpdate: Record<string, unknown> = {
@@ -93,6 +98,9 @@ export function applyEvaluationResults(
           score_reason: item.score_reason,
           notes: job.notes ? `${job.notes}\n[Flagged] ${item.score_reason}` : `[Flagged] ${item.score_reason}`,
         };
+        if (item.score_tags?.length) {
+          flagUpdate.score_tags = item.score_tags;
+        }
         if (item.h1b_sponsorship && item.h1b_sponsorship !== 'unknown') {
           flagUpdate.visa_sponsorship = item.h1b_sponsorship;
         }
@@ -122,6 +130,9 @@ export function applyEvaluationResults(
         score_reason: item.score_reason,
         status: targetStatus,
       };
+      if (item.score_tags?.length) {
+        evalUpdate.score_tags = item.score_tags;
+      }
       if (item.h1b_sponsorship && item.h1b_sponsorship !== 'unknown') {
         evalUpdate.visa_sponsorship = item.h1b_sponsorship;
       }

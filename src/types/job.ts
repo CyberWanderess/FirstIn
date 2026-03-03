@@ -2,7 +2,7 @@ export type JobStatus =
   | 'new'
   | 'pending_eval'
   | 'pending_deep_analysis'
-  | 'analyzed'
+  | 'ready_to_apply_tailored'
   | 'ready_to_apply'
   | 'applied'
   | 'interviewing'
@@ -10,12 +10,40 @@ export type JobStatus =
   | 'rejected'
   | 'archived_filtered'
   | 'archived_low_match'
-  | 'archived_no_response';
+  | 'archived_no_response'
+  | 'archived_manual';
 
 export const JOB_STATUSES: readonly JobStatus[] = [
-  'new', 'pending_eval', 'pending_deep_analysis', 'analyzed',
+  'new', 'pending_eval', 'pending_deep_analysis', 'ready_to_apply_tailored',
   'ready_to_apply', 'applied', 'interviewing', 'offer', 'rejected',
-  'archived_filtered', 'archived_low_match', 'archived_no_response',
+  'archived_filtered', 'archived_low_match', 'archived_no_response', 'archived_manual',
+] as const;
+
+export const STATUS_LABELS: Record<string, string> = {
+  new: 'New',
+  pending_eval: 'Pending Eval',
+  pending_deep_analysis: 'Deep Analysis',
+  ready_to_apply_tailored: 'Tailoring',
+  ready_to_apply: 'Ready to Apply',
+  applied: 'Applied',
+  interviewing: 'Interviewing',
+  offer: 'Offer',
+  rejected: 'Rejected',
+  archived_filtered: 'Archived (Filtered)',
+  archived_low_match: 'Archived (Low Match)',
+  archived_no_response: 'Archived (No Response)',
+  archived_manual: 'Archived (Manual)',
+};
+
+export type ScoreTag =
+  | 'downpay' | 'down_level' | 'skill_gap' | 'domain_gap' | 'exp_gap'
+  | 'strong_match' | 'rare_opportunity'
+  | 'cooldown_risk' | 'overqualified';
+
+export const SCORE_TAGS: readonly ScoreTag[] = [
+  'downpay', 'down_level', 'skill_gap', 'domain_gap', 'exp_gap',
+  'strong_match', 'rare_opportunity',
+  'cooldown_risk', 'overqualified',
 ] as const;
 
 export type JdFetchStatus = 'pending' | 'success' | 'failed';
@@ -41,6 +69,7 @@ export interface Job {
   score_reason: string | null;
   deep_analysis: string | null;
   visa_sponsorship: string | null;
+  score_tags: string[] | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -59,6 +88,8 @@ export interface JobWithCompany extends Job {
   application_limit: number | null;
   cooldown_months: number | null;
   chinese_affinity: number | null;
+  company_active_jobs?: number;
+  company_total_jobs?: number;
 }
 
 export interface JobInsert {
@@ -102,5 +133,6 @@ export interface JobUpdate {
   score_reason?: string | null;
   deep_analysis?: string | null;
   visa_sponsorship?: string | null;
+  score_tags?: string[] | null;
   notes?: string | null;
 }

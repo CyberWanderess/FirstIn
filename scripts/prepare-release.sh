@@ -52,7 +52,7 @@ REMOVED=0
 for f in "${FILES_TO_REMOVE[@]}"; do
   if git ls-files --error-unmatch "$f" &>/dev/null 2>&1; then
     git rm -q -f "$f"
-    ((REMOVED++))
+    REMOVED=$((REMOVED + 1))
   fi
 done
 echo "Removed $REMOVED crawler files"

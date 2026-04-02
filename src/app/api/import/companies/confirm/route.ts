@@ -1,11 +1,9 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { applyCompanyResearch, type CompanyResearchItem } from '@/lib/export/company-importer';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{ items: CompanyResearchItem[] }>(req);
     if (!body.items || !Array.isArray(body.items)) {
@@ -24,4 +22,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

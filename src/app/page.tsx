@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { config } from '@/lib/config';
 import { countJobsByStatus } from '@/lib/repositories/job-repository';
@@ -25,7 +27,10 @@ const STATUS_GROUPS = [
 
 export const dynamic = 'force-dynamic';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const user = await requireAuthPage();
+
+  return runWithUser(user.id, () => {
   ensureInitialized();
   const statusCounts = countJobsByStatus();
   const batchOps = getRecentOperations(undefined, 10, 'batch');
@@ -43,8 +48,7 @@ export default function DashboardPage() {
 
   const setupCompleted = getSetting('setup_completed', '') === 'true';
 
-  return (
-    <div className="space-y-6">
+  return (<div className="space-y-6">
       {/* Setup banner */}
       {!setupCompleted && (
         <Link
@@ -112,8 +116,8 @@ export default function DashboardPage() {
         <ActivitySection title="Batch Operations" ops={batchOps} />
         <ActivitySection title="Job Activity" ops={jobOps} />
       </div>
-    </div>
-  );
+    </div>);
+  });
 }
 
 function ActivitySection({ title, ops }: { title: string; ops: OperationLog[] }) {

@@ -1,17 +1,14 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listRules, insertRule } from '@/lib/repositories/rule-repository';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import type { FilterRuleInsert } from '@/types';
 
-export async function GET() {
-  ensureInitialized();
+export const GET = withAuth(async () => {
   const rules = listRules();
   return jsonResponse(rules);
-}
+});
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<FilterRuleInsert>(req);
     if (!body.name || !body.field || !body.operator || body.value === undefined || !body.action) {
@@ -22,4 +19,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

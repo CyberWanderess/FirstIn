@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { listCompanies } from '@/lib/repositories/company-repository';
 import { APPLICATION_STRATEGIES } from '@/types';
@@ -32,9 +34,11 @@ export default async function CompaniesPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  ensureInitialized();
+  const user = await requireAuthPage();
   const params = await searchParams;
 
+  return runWithUser(user.id, () => {
+  ensureInitialized();
   const strategy = params.strategy || undefined;
   const infoStatus = params.info_status || undefined;
   const q = params.q || undefined;
@@ -202,6 +206,6 @@ export default async function CompaniesPage({
           </div>
         </div>
       )}
-    </div>
-  );
+    </div>);
+  });
 }

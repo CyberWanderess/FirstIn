@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import type { JobInsert } from '@/types';
 
@@ -18,8 +17,7 @@ interface RawJob {
   notes?: string | null;
 }
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{ jobs: RawJob[] }>(req);
     if (!body.jobs || !Array.isArray(body.jobs)) {
@@ -69,4 +67,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

@@ -1,12 +1,10 @@
-import { NextRequest } from 'next/server';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { crawlHiringCafe } from '@/lib/scraper/hiring-cafe-crawler';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     let configId: number | undefined;
     let cookie: string | undefined;
@@ -29,4 +27,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message, 500);
   }
-}
+});

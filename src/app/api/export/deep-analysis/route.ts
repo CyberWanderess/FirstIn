@@ -1,13 +1,11 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listJobs, findJobById } from '@/lib/repositories/job-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { exportJobsForDeepAnalysis } from '@/lib/export/deep-analysis-exporter';
 import { jsonResponse } from '@/lib/api-utils';
 import type { JobWithCompany } from '@/types';
 
-export async function GET(req: NextRequest) {
-  ensureInitialized();
+export const GET = withAuth(async (req) => {
   const url = req.nextUrl;
   const format = (url.searchParams.get('format') || 'markdown') as 'markdown' | 'json';
   const idsParam = url.searchParams.get('ids');
@@ -26,4 +24,4 @@ export async function GET(req: NextRequest) {
   const resumeText = getSetting('resume_text', '');
   const text = exportJobsForDeepAnalysis(jobs, format, resumeText || undefined);
   return jsonResponse({ text, jobCount: jobs.length });
-}
+});

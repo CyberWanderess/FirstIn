@@ -1,13 +1,11 @@
 import { readFileSync, unlinkSync } from 'fs';
 import { NextResponse } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { getDb } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-  ensureInitialized();
-
+export const GET = withAuth(async () => {
   const tmpPath = `/tmp/jobhq-export-${Date.now()}.db`;
   try {
     // VACUUM INTO creates a consistent snapshot even with WAL mode
@@ -30,4 +28,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

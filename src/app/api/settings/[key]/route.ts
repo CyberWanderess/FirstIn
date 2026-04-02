@@ -1,21 +1,18 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { getSettingByKey, upsertSetting } from '@/lib/repositories/settings-repository';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
 type Params = { params: Promise<{ key: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  ensureInitialized();
-  const { key } = await params;
+export const GET = withAuth(async (_req, context) => {
+  const { key } = await (context as Params).params;
   const setting = getSettingByKey(key);
   if (!setting) return errorResponse('Setting not found', 404);
   return jsonResponse(setting);
-}
+});
 
-export async function PUT(req: NextRequest, { params }: Params) {
-  ensureInitialized();
-  const { key } = await params;
+export const PUT = withAuth(async (req, context) => {
+  const { key } = await (context as Params).params;
   try {
     const body = await parseJsonBody<{ value: string; description?: string }>(req);
     if (body.value === undefined) return errorResponse('value is required');
@@ -24,4 +21,4 @@ export async function PUT(req: NextRequest, { params }: Params) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

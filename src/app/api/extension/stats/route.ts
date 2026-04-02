@@ -1,15 +1,10 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
-import { verifyExtensionToken, extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
+import { extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
+import { withExtensionAuth } from '@/lib/route-handler';
 import { countJobsByStatus, getRecentJobs } from '@/lib/repositories/job-repository';
 
 export async function OPTIONS() { return extOptionsResponse(); }
 
-export async function GET(req: NextRequest) {
-  ensureInitialized();
-  const auth = verifyExtensionToken(req);
-  if (!auth.valid) return auth.response;
-
+export const GET = withExtensionAuth(async () => {
   try {
     const statusCounts = countJobsByStatus();
     const recent = getRecentJobs(5);
@@ -25,4 +20,4 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     return extErrorResponse((e as Error).message);
   }
-}
+});

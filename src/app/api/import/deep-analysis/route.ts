@@ -1,10 +1,8 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { parseDeepAnalysis } from '@/lib/export/deep-analysis-importer';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{ text: string }>(req);
     const text = body.text;
@@ -17,4 +15,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message, 500);
   }
-}
+});

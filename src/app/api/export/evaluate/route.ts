@@ -1,12 +1,10 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listJobs, findJobById } from '@/lib/repositories/job-repository';
 import { exportJobsForEvaluation } from '@/lib/export/evaluation-exporter';
 import { jsonResponse } from '@/lib/api-utils';
 import type { JobWithCompany } from '@/types';
 
-export async function GET(req: NextRequest) {
-  ensureInitialized();
+export const GET = withAuth(async (req) => {
   const url = req.nextUrl;
   const status = url.searchParams.get('status') || 'pending_eval';
   const format = (url.searchParams.get('format') || 'markdown') as 'markdown' | 'json';
@@ -25,4 +23,4 @@ export async function GET(req: NextRequest) {
 
   const text = exportJobsForEvaluation(jobs, format);
   return jsonResponse({ text, jobCount: jobs.length });
-}
+});

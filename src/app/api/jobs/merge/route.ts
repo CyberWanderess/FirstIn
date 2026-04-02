@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/route-handler';
 import { mergeJobs } from '@/lib/repositories/job-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
-
+export const POST = withAuth(async (req) => {
   try {
     const { primaryId, secondaryId } = await req.json();
     if (!primaryId || !secondaryId) {
@@ -32,4 +30,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return NextResponse.json({ success: false, error: (e as Error).message }, { status: 500 });
   }
-}
+});

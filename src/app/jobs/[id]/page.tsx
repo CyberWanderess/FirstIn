@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { findJobById } from '@/lib/repositories/job-repository';
 import { getEntityHistory } from '@/lib/repositories/operation-log-repository';
@@ -34,8 +36,11 @@ export default async function JobDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  ensureInitialized();
+  const user = await requireAuthPage();
   const { id } = await params;
+
+  return runWithUser(user.id, () => {
+  ensureInitialized();
   const job = findJobById(parseInt(id));
   if (!job) notFound();
 
@@ -217,8 +222,8 @@ export default async function JobDetailPage({
           ))}
         </div>
       </div>
-    </div>
-  );
+    </div>);
+  });
 }
 
 function InfoCard({ label, value, subtitle }: { label: string; value: string; subtitle?: string }) {

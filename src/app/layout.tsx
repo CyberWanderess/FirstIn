@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { LogoutButton } from "@/components/logout-button";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,7 +44,7 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="flex h-14 items-center gap-8">
               <Link href="/" className="font-bold text-lg text-zinc-900">FirstIn</Link>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-1">
                 {NAV_ITEMS.map((item) => (
                   <Link
                     key={item.href}
@@ -54,6 +55,7 @@ export default function RootLayout({
                   </Link>
                 ))}
               </div>
+              <LogoutButton />
             </div>
           </div>
         </nav>

@@ -11,7 +11,7 @@ function optional(key: string, defaultValue: string): string {
 }
 
 export const config = {
-  databasePath: required('DATABASE_PATH'),
+  legacyDatabasePath: optional('DATABASE_PATH', './data/jobhq.db'),
   nodeEnv: optional('NODE_ENV', 'development'),
   port: parseInt(optional('PORT', '3000'), 10),
   baseUrl: process.env.BASE_URL || null,

@@ -1,4 +1,4 @@
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { evaluateJob } from '@/lib/rule-engine';
 import { listJobs, updateJob } from '@/lib/repositories/job-repository';
 import { findCompanyById } from '@/lib/repositories/company-repository';
@@ -9,8 +9,7 @@ import { validateTransition } from '@/lib/status-machine';
 import { jsonResponse, errorResponse } from '@/lib/api-utils';
 import type { Job, JobStatus } from '@/types';
 
-export async function POST() {
-  ensureInitialized();
+export const POST = withAuth(async () => {
   try {
     const rules = listRules(true);
     const noH1bAction = getSetting('no_h1b_action', 'auto_exclude');
@@ -64,4 +63,4 @@ export async function POST() {
   } catch (e) {
     return errorResponse((e as Error).message, 500);
   }
-}
+});

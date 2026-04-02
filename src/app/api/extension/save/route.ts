@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
-import { verifyExtensionToken, extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
+import { extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
+import { withExtensionAuth } from '@/lib/route-handler';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
 import { insertJob, listJobs, updateJob, findJobBySourceId, addJobSourceId } from '@/lib/repositories/job-repository';
 import { listRules } from '@/lib/repositories/rule-repository';
@@ -30,11 +30,7 @@ interface SaveRequest {
 
 export async function OPTIONS() { return extOptionsResponse(); }
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
-  const auth = verifyExtensionToken(req);
-  if (!auth.valid) return auth.response;
-
+export const POST = withExtensionAuth(async (req) => {
   try {
     const body = await req.json() as SaveRequest;
     if (!body.title || !body.company_name) {
@@ -155,4 +151,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return extErrorResponse((e as Error).message);
   }
-}
+});

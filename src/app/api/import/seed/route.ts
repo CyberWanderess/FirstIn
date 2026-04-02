@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { getDb } from '@/lib/db';
 import { upsertSetting } from '@/lib/repositories/settings-repository';
 import { insertRule } from '@/lib/repositories/rule-repository';
@@ -13,8 +12,7 @@ interface SeedData {
   search_configs?: SearchConfigInsert[];
 }
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<SeedData>(req);
     const db = getDb();
@@ -56,4 +54,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

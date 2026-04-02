@@ -1,11 +1,9 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listCompanies } from '@/lib/repositories/company-repository';
 import { exportCompaniesForResearch } from '@/lib/export/company-exporter';
 import { jsonResponse } from '@/lib/api-utils';
 
-export async function GET(req: NextRequest) {
-  ensureInitialized();
+export const GET = withAuth(async (req) => {
   const url = req.nextUrl;
   const infoStatus = url.searchParams.get('status') || 'pending';
   const format = (url.searchParams.get('format') || 'markdown') as 'markdown' | 'json';
@@ -20,4 +18,4 @@ export async function GET(req: NextRequest) {
   const text = exportCompaniesForResearch(filtered, format);
 
   return jsonResponse({ text, companyCount: filtered.length });
-}
+});

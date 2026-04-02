@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listRules } from '@/lib/repositories/rule-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { findCompanyById } from '@/lib/repositories/company-repository';
@@ -7,8 +6,7 @@ import { evaluateJob } from '@/lib/rule-engine';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import type { JobInsert } from '@/types';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const raw = await parseJsonBody<{ job?: JobInsert & { company?: string } } & JobInsert & { company?: string }>(req);
     const body = raw.job ?? raw;
@@ -27,4 +25,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

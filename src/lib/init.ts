@@ -1,11 +1,18 @@
-import { getDb } from './db';
+import { getDb, userContext } from './db';
 import { runMigrations } from './migrations/runner';
 
-let initialized = false;
+const initializedUsers = new Set<number>();
 
 export function ensureInitialized(): void {
-  if (initialized) return;
+  const ctx = userContext.getStore();
+  if (!ctx) {
+    throw new Error('ensureInitialized() called without user context.');
+  }
+
+  const { userId } = ctx;
+  if (initializedUsers.has(userId)) return;
+
   const db = getDb();
   runMigrations(db);
-  initialized = true;
+  initializedUsers.add(userId);
 }

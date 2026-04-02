@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { config } from '@/lib/config';
 import { listJobs } from '@/lib/repositories/job-repository';
@@ -37,9 +39,11 @@ export default async function JobsPage({
 }: {
   searchParams: Promise<Record<string, string>>;
 }) {
-  ensureInitialized();
+  const user = await requireAuthPage();
   const params = await searchParams;
 
+  return runWithUser(user.id, () => {
+  ensureInitialized();
   const DEFAULT_STATUSES = 'pending_eval,pending_deep_analysis,ready_to_apply_tailored,ready_to_apply';
   const rawStatus = params.status ?? DEFAULT_STATUSES;
   const status = rawStatus === 'all' ? undefined : rawStatus;
@@ -256,6 +260,6 @@ export default async function JobsPage({
           </div>
         </div>
       )}
-    </div>
-  );
+    </div>);
+  });
 }

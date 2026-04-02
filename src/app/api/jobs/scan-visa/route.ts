@@ -1,4 +1,4 @@
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { getDb } from '@/lib/db';
 import { updateJob } from '@/lib/repositories/job-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
@@ -9,8 +9,7 @@ import { jsonResponse, errorResponse } from '@/lib/api-utils';
  * POST /api/jobs/scan-visa
  * Batch scan all jobs with JD text but no visa_sponsorship result.
  */
-export async function POST() {
-  ensureInitialized();
+export const POST = withAuth(async () => {
   try {
     const db = getDb();
     const rows = db.prepare(
@@ -41,4 +40,4 @@ export async function POST() {
   } catch (e) {
     return errorResponse((e as Error).message, 500);
   }
-}
+});

@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { parseRejectionResults } from '@/lib/export/rejection-importer';
 import { matchRejectionsToJobs } from '@/lib/export/rejection-exporter';
@@ -12,8 +11,7 @@ const NON_TERMINAL_STATUSES: JobStatus[] = [
   'interviewing', 'archived_filtered', 'archived_low_match', 'archived_manual',
 ];
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{ text: string }>(req);
     if (!body.text?.trim()) {
@@ -41,4 +39,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

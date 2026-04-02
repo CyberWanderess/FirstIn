@@ -1,13 +1,11 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listJobs, insertJob } from '@/lib/repositories/job-repository';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { jsonResponse, errorResponse, paginatedResponse, parseSearchParams, parseJsonBody } from '@/lib/api-utils';
 import type { JobInsert } from '@/types';
 
-export async function GET(req: NextRequest) {
-  ensureInitialized();
+export const GET = withAuth(async (req) => {
   const { page, limit, offset, sort, order, q } = parseSearchParams(req);
   const url = req.nextUrl;
 
@@ -25,10 +23,9 @@ export async function GET(req: NextRequest) {
   });
 
   return paginatedResponse(jobs, total, page, limit);
-}
+});
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<JobInsert>(req);
 
@@ -55,4 +52,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

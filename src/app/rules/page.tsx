@@ -1,12 +1,18 @@
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { listRules } from '@/lib/repositories/rule-repository';
 import { RulesClient } from './rules-client';
 
 export const dynamic = 'force-dynamic';
 
-export default function RulesPage() {
-  ensureInitialized();
-  const rules = listRules();
+export default async function RulesPage() {
+  const user = await requireAuthPage();
 
-  return <RulesClient initialRules={rules} />;
+  return runWithUser(user.id, () => {
+    ensureInitialized();
+    const rules = listRules();
+
+    return <RulesClient initialRules={rules} />;
+  });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { normalizeTitle, normalizeJdText, trigramSimilarity } from '@/lib/dedup';
 import type { JobWithCompany } from '@/types';
@@ -13,9 +13,7 @@ interface DedupPair {
   similarity: number;
 }
 
-export async function GET() {
-  ensureInitialized();
-
+export const GET = withAuth(async () => {
   // Fetch all non-archived jobs
   const { jobs } = listJobs({
     limit: 10000,
@@ -59,7 +57,7 @@ export async function GET() {
   pairs.sort((a, b) => b.similarity - a.similarity);
 
   return NextResponse.json({ success: true, data: { pairs, total: pairs.length } });
-}
+});
 
 function findMatch(
   a: JobWithCompany,

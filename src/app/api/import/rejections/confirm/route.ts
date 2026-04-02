@@ -1,12 +1,10 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { applyRejectionResults, createRejectedJobs } from '@/lib/export/rejection-importer';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import type { MatchedRejection, UnmatchedRejection } from '@/lib/export/rejection-exporter';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{
       matched: MatchedRejection[];
@@ -47,4 +45,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { requireAuthPage } from '@/lib/auth';
+import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { findCompanyById } from '@/lib/repositories/company-repository';
 import { listJobs } from '@/lib/repositories/job-repository';
@@ -40,8 +42,11 @@ export default async function CompanyDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  ensureInitialized();
+  const user = await requireAuthPage();
   const { id } = await params;
+
+  return runWithUser(user.id, () => {
+  ensureInitialized();
   const company = findCompanyById(parseInt(id));
   if (!company) notFound();
 
@@ -204,8 +209,8 @@ export default async function CompanyDetailPage({
           ))}
         </div>
       </div>
-    </div>
-  );
+    </div>);
+  });
 }
 
 function formatHistoryDetails(details: Record<string, unknown>): string {

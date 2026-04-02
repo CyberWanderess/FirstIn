@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { getDb } from '@/lib/db';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
 import { insertJob, listJobs, updateJob, findJobBySourceId, addJobSourceId } from '@/lib/repositories/job-repository';
@@ -13,8 +12,7 @@ import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import { cleanJdText } from '@/lib/jd-cleaner';
 import type { JobInsert, Job } from '@/types';
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await parseJsonBody<{ items: JobInsert[] }>(req);
     if (!body.items || !Array.isArray(body.items)) {
@@ -135,4 +133,4 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});

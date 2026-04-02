@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { NextResponse } from 'next/server';
+import { withAuth } from '@/lib/route-handler';
 import { processRawJobs, type RawExtractedJob } from '@/lib/scraper/hiring-cafe-crawler';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { jsonResponse, errorResponse } from '@/lib/api-utils';
@@ -99,8 +99,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export async function POST(req: NextRequest) {
-  ensureInitialized();
+export const POST = withAuth(async (req) => {
   try {
     const body = await req.json() as { jobs: ApiJob[] };
 
@@ -147,4 +146,4 @@ export async function POST(req: NextRequest) {
     }
     return resp;
   }
-}
+});

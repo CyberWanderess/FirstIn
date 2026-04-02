@@ -1,5 +1,4 @@
-import { NextRequest } from 'next/server';
-import { ensureInitialized } from '@/lib/init';
+import { withAuth } from '@/lib/route-handler';
 import { findCompanyById, updateCompany, deleteCompany, countActiveApplications } from '@/lib/repositories/company-repository';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
@@ -8,9 +7,8 @@ import type { CompanyUpdate } from '@/types';
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Params) {
-  ensureInitialized();
-  const { id } = await params;
+export const GET = withAuth(async (_req, context) => {
+  const { id } = await (context as Params).params;
   const companyId = parseInt(id);
   const company = findCompanyById(companyId);
   if (!company) return errorResponse('Company not found', 404);
@@ -19,11 +17,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const activeApplications = countActiveApplications(companyId);
 
   return jsonResponse({ ...company, jobs, active_applications: activeApplications });
-}
+});
 
-export async function PATCH(req: NextRequest, { params }: Params) {
-  ensureInitialized();
-  const { id } = await params;
+export const PATCH = withAuth(async (req, context) => {
+  const { id } = await (context as Params).params;
   const companyId = parseInt(id);
   const existing = findCompanyById(companyId);
   if (!existing) return errorResponse('Company not found', 404);
@@ -52,12 +49,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   } catch (e) {
     return errorResponse((e as Error).message);
   }
-}
+});
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  ensureInitialized();
-  const { id } = await params;
+export const DELETE = withAuth(async (_req, context) => {
+  const { id } = await (context as Params).params;
   const deleted = deleteCompany(parseInt(id));
   if (!deleted) return errorResponse('Cannot delete company with associated jobs', 400);
   return jsonResponse({ deleted: true });
-}
+});

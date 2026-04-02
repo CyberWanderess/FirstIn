@@ -33,17 +33,31 @@ export function getEntityHistory(entityType: string, entityId: number, limit = 5
   return rows.map(deserializeLog);
 }
 
-export function getRecentOperations(operation?: string, limit = 20): OperationLog[] {
+export function getRecentOperations(operation?: string, limit = 20, entityType?: string): OperationLog[] {
   const db = getDb();
-  let sql = 'SELECT * FROM operation_log';
+  let sql = `
+    SELECT ol.*, j.title AS job_title, c.display_name AS company_name
+    FROM operation_log ol
+    LEFT JOIN jobs j ON ol.entity_type = 'job' AND ol.entity_id = j.id
+    LEFT JOIN companies c ON j.company_id = c.id
+  `;
+  const conditions: string[] = [];
   const params: unknown[] = [];
 
   if (operation) {
-    sql += ' WHERE operation = ?';
+    conditions.push('ol.operation = ?');
     params.push(operation);
   }
+  if (entityType) {
+    conditions.push('ol.entity_type = ?');
+    params.push(entityType);
+  }
 
-  sql += ' ORDER BY created_at DESC LIMIT ?';
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(' AND ')}`;
+  }
+
+  sql += ' ORDER BY ol.created_at DESC LIMIT ?';
   params.push(limit);
 
   const rows = db.prepare(sql).all(...params) as Record<string, unknown>[];

@@ -17,6 +17,16 @@ const INFO_STATUS_COLORS: Record<string, string> = {
   complete: 'bg-green-100 text-green-800',
 };
 
+const SOURCE_COLORS: Record<string, string> = {
+  hiring_cafe: 'bg-orange-100 text-orange-700',
+  linkedin: 'bg-blue-100 text-blue-700',
+  jsearch: 'bg-purple-100 text-purple-700',
+  greenhouse: 'bg-emerald-100 text-emerald-700',
+  lever: 'bg-zinc-100 text-zinc-600',
+  ashby: 'bg-zinc-100 text-zinc-600',
+  manual: 'bg-zinc-100 text-zinc-500',
+};
+
 export default async function CompaniesPage({
   searchParams,
 }: {
@@ -113,13 +123,14 @@ export default async function CompaniesPage({
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Industry</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Size</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Strategy</th>
+              <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Sources</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Info Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {companies.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-zinc-400">
                   No companies found
                 </td>
               </tr>
@@ -144,6 +155,15 @@ export default async function CompaniesPage({
                   <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${STRATEGY_COLORS[company.application_strategy] || 'bg-zinc-100 text-zinc-600'}`}>
                     {company.application_strategy}
                   </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <div className="flex flex-wrap gap-1">
+                    {company.sources.length > 0 ? company.sources.map(s => (
+                      <span key={s} className={`inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${SOURCE_COLORS[s] || 'bg-zinc-100 text-zinc-500'}`}>
+                        {s}
+                      </span>
+                    )) : <span className="text-zinc-400">--</span>}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5">
                   <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded ${INFO_STATUS_COLORS[company.info_status] || 'bg-zinc-100 text-zinc-600'}`}>

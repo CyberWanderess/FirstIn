@@ -46,11 +46,24 @@ export default async function JobsPage({
   const q = params.q || undefined;
   const sort = params.sort || 'created_at';
   const order = params.order || 'DESC';
+  const sort2 = params.sort2 || '';
+  const order2 = params.order2 || 'DESC';
+  const sort3 = params.sort3 || '';
+  const order3 = params.order3 || 'DESC';
   const page = parseInt(params.page || '1');
   const limit = 50;
   const offset = (page - 1) * limit;
 
-  const { jobs, total } = listJobs({ status, q, sort, order, limit, offset });
+  const showExpired = params.expired === 'show';
+  const { jobs, total } = listJobs({
+    status, q, sort, order,
+    sort2: sort2 || undefined,
+    order2: order2 || undefined,
+    sort3: sort3 || undefined,
+    order3: order3 || undefined,
+    excludeExpired: !showExpired,
+    limit, offset,
+  });
   const totalPages = Math.ceil(total / limit);
 
   function buildUrl(overrides: Record<string, string>) {
@@ -59,7 +72,15 @@ export default async function JobsPage({
     if (q) base.q = q;
     if (sort !== 'created_at') base.sort = sort;
     if (order !== 'DESC') base.order = order;
+    if (sort2) base.sort2 = sort2;
+    if (sort2 && order2 !== 'DESC') base.order2 = order2;
+    if (sort3) base.sort3 = sort3;
+    if (sort3 && order3 !== 'DESC') base.order3 = order3;
     const merged = { ...base, ...overrides };
+    // Remove empty values
+    for (const [k, v] of Object.entries(merged)) {
+      if (!v) delete merged[k];
+    }
     const qs = new URLSearchParams(merged).toString();
     return `/jobs${qs ? `?${qs}` : ''}`;
   }
@@ -72,13 +93,29 @@ export default async function JobsPage({
         initialQ={q}
         initialSort={sort}
         initialOrder={order}
+        initialSort2={sort2}
+        initialOrder2={order2}
+        initialSort3={sort3}
+        initialOrder3={order3}
       />
 
       {/* Results count */}
-      <div className="text-sm text-zinc-500">
-        {total} job{total !== 1 ? 's' : ''} found
-        {status && <span> with status &quot;{status.replace(/_/g, ' ')}&quot;</span>}
-        {q && <span> matching &quot;{q}&quot;</span>}
+      <div className="flex items-center justify-between text-sm text-zinc-500">
+        <div>
+          {total} job{total !== 1 ? 's' : ''} found
+          {status && <span> with status &quot;{status.replace(/_/g, ' ')}&quot;</span>}
+          {q && <span> matching &quot;{q}&quot;</span>}
+        </div>
+        <Link
+          href={buildUrl(showExpired ? { expired: '' } : { expired: 'show' })}
+          className={`text-xs px-2 py-1 rounded border transition-colors ${
+            showExpired
+              ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+              : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'
+          }`}
+        >
+          {showExpired ? 'Hide Expired' : 'Show Expired'}
+        </Link>
       </div>
 
       {/* Table */}
@@ -88,7 +125,7 @@ export default async function JobsPage({
             <tr className="border-b border-zinc-200 bg-zinc-50">
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Company</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Title</th>
-              <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Score</th>
+              <th className="text-left px-4 py-2.5 font-medium text-zinc-600" title="Success Rate / Attractiveness">Score</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Salary</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Location</th>
               <th className="text-left px-4 py-2.5 font-medium text-zinc-600">Status</th>
@@ -131,7 +168,12 @@ export default async function JobsPage({
                     )}
                     {job.application_limit != null && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">
-                        {job.application_limit}/yr
+                        {job.application_limit}/{(job.limit_period_months ?? 12) === 1 ? 'mo' : (job.limit_period_months ?? 12) === 12 ? 'yr' : `${job.limit_period_months}mo`}
+                      </span>
+                    )}
+                    {job.funding_round && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 border border-violet-200 shrink-0">
+                        {job.funding_round}
                       </span>
                     )}
                   </div>
@@ -145,7 +187,12 @@ export default async function JobsPage({
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 text-zinc-600">
-                  {job.score !== null ? job.score : '--'}
+                  {job.score_success !== null || job.score !== null ? (
+                    <>
+                      <span className="font-medium">{job.score_success ?? '--'}</span>
+                      <span className="text-zinc-400 text-xs"> / {job.score ?? '--'}</span>
+                    </>
+                  ) : '--'}
                 </td>
                 <td className="px-4 py-2.5 text-zinc-600">
                   {formatSalary(job.salary_min, job.salary_max)}

@@ -44,7 +44,7 @@ export function migration001(db: Database.Database): void {
       jd_content_hash TEXT,
       source TEXT NOT NULL DEFAULT 'manual',
       source_id TEXT,
-      status TEXT NOT NULL DEFAULT 'new',
+      status TEXT NOT NULL DEFAULT 'pending_eval',
       score INTEGER,
       score_reason TEXT,
       notes TEXT,

@@ -1,5 +1,5 @@
 import { getDb } from '@/lib/db';
-import type { Company, CompanyInsert, CompanyUpdate } from '@/types';
+import type { Company, CompanyWithSources, CompanyInsert, CompanyUpdate } from '@/types';
 
 function normalizeCompanyName(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -15,9 +15,27 @@ export function findCompanyByName(name: string): Company | null {
   return db.prepare('SELECT * FROM companies WHERE name = ?').get(normalizeCompanyName(name)) as Company | undefined ?? null;
 }
 
+export function findCompanyByNameFuzzy(displayName: string): Company | null {
+  const db = getDb();
+  const normalized = normalizeCompanyName(displayName);
+  // Exact match
+  const exact = db.prepare('SELECT * FROM companies WHERE name = ?').get(normalized) as Company | undefined;
+  if (exact) return exact;
+  // Input is a prefix of existing DB name (e.g. "nvidia" → finds "nvidia corporation")
+  const inputIsPrefix = db.prepare(
+    `SELECT * FROM companies WHERE name LIKE ? ORDER BY length(name) ASC LIMIT 1`
+  ).get(`${normalized}%`) as Company | undefined;
+  if (inputIsPrefix) return inputIsPrefix;
+  // Existing DB name is a prefix of input (e.g. "nvidia corporation" → finds "nvidia")
+  const dbIsPrefix = db.prepare(
+    `SELECT * FROM companies WHERE ? LIKE name || '%' ORDER BY length(name) DESC LIMIT 1`
+  ).get(normalized) as Company | undefined;
+  return dbIsPrefix ?? null;
+}
+
 export function findOrCreateCompany(displayName: string): Company {
   const name = normalizeCompanyName(displayName);
-  const existing = findCompanyByName(displayName);
+  const existing = findCompanyByNameFuzzy(displayName);
   if (existing) return existing;
 
   const db = getDb();
@@ -34,34 +52,40 @@ export function listCompanies(options: {
   q?: string;
   limit?: number;
   offset?: number;
-}): { companies: Company[]; total: number } {
+}): { companies: CompanyWithSources[]; total: number } {
   const db = getDb();
   const conditions: string[] = [];
   const params: unknown[] = [];
 
   if (options.strategy) {
-    conditions.push('application_strategy = ?');
+    conditions.push('c.application_strategy = ?');
     params.push(options.strategy);
   }
   if (options.infoStatus) {
-    conditions.push('info_status = ?');
+    conditions.push('c.info_status = ?');
     params.push(options.infoStatus);
   }
   if (options.q) {
-    conditions.push('(display_name LIKE ? OR industry LIKE ?)');
+    conditions.push('(c.display_name LIKE ? OR c.industry LIKE ?)');
     const like = `%${options.q}%`;
     params.push(like, like);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const total = (db.prepare(`SELECT COUNT(*) as count FROM companies ${where}`).get(...params) as { count: number }).count;
+  const total = (db.prepare(`SELECT COUNT(*) as count FROM companies c ${where}`).get(...params) as { count: number }).count;
 
   const limit = options.limit ?? 50;
   const offset = options.offset ?? 0;
-  const companies = db.prepare(
-    `SELECT * FROM companies ${where} ORDER BY display_name ASC LIMIT ? OFFSET ?`
-  ).all(...params, limit, offset) as Company[];
+  const rows = db.prepare(
+    `SELECT c.*, (SELECT GROUP_CONCAT(DISTINCT j.source) FROM jobs j WHERE j.company_id = c.id) as _sources
+     FROM companies c ${where} ORDER BY c.display_name ASC LIMIT ? OFFSET ?`
+  ).all(...params, limit, offset) as (Company & { _sources: string | null })[];
+
+  const companies: CompanyWithSources[] = rows.map(row => {
+    const { _sources, ...company } = row;
+    return { ...company, sources: _sources ? _sources.split(',') : [] };
+  });
 
   return { companies, total };
 }

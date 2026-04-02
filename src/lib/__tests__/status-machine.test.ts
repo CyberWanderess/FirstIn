@@ -3,9 +3,6 @@ import { validateTransition, getAllowedTransitions } from '@/lib/status-machine'
 
 describe('validateTransition', () => {
   const validCases: [string, string][] = [
-    ['new', 'pending_eval'],
-    ['new', 'archived_filtered'],
-    ['new', 'archived_manual'],
     ['pending_eval', 'pending_deep_analysis'],
     ['pending_eval', 'ready_to_apply'],
     ['pending_eval', 'archived_low_match'],
@@ -37,10 +34,7 @@ describe('validateTransition', () => {
   });
 
   const invalidCases: [string, string][] = [
-    ['new', 'applied'],
-    ['new', 'offer'],
     ['pending_eval', 'applied'],
-    ['applied', 'new'],
     ['interviewing', 'applied'],
     ['ready_to_apply', 'pending_eval'],
   ];
@@ -60,15 +54,17 @@ describe('validateTransition', () => {
   });
 
   it('unknown status returns invalid', () => {
-    const result = validateTransition('nonexistent' as any, 'new' as any);
+    const result = validateTransition('nonexistent' as any, 'pending_eval' as any);
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('Unknown status');
   });
 });
 
 describe('getAllowedTransitions', () => {
-  it('returns correct transitions for new', () => {
-    expect(getAllowedTransitions('new')).toEqual(['pending_eval', 'archived_filtered', 'archived_manual']);
+  it('returns correct transitions for pending_eval', () => {
+    expect(getAllowedTransitions('pending_eval')).toEqual([
+      'pending_deep_analysis', 'ready_to_apply', 'flagged', 'archived_low_match', 'archived_filtered', 'archived_manual',
+    ]);
   });
 
   it('returns empty for terminal states', () => {

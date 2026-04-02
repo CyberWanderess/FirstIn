@@ -1,5 +1,6 @@
 import { execFile } from 'child_process';
 import { join } from 'path';
+import { statSync, existsSync } from 'fs';
 import { checkDuplicate, hashContent } from '@/lib/dedup';
 import { evaluateJob } from '@/lib/rule-engine';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
@@ -9,6 +10,7 @@ import { getSetting, getSettingNumber } from '@/lib/repositories/settings-reposi
 import { listSearchConfigs, findSearchConfigById, updateSearchConfig } from '@/lib/repositories/search-config-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
 import { scanVisaSponsorship } from '@/lib/visa-scan';
+import { cleanJdText } from '@/lib/jd-cleaner';
 import type { Job } from '@/types';
 
 export interface CrawlResult {
@@ -23,7 +25,7 @@ export interface CrawlResult {
   errors: string[];
 }
 
-interface RawExtractedJob {
+export interface RawExtractedJob {
   title: string;
   company: string;
   location: string;
@@ -32,9 +34,10 @@ interface RawExtractedJob {
   commitment: string;
   viewJobId: string;
   jdText: string | null;
+  applyUrl: string | null;
 }
 
-function parseSalary(text: string): { min: number | null; max: number | null } {
+export function parseSalary(text: string): { min: number | null; max: number | null } {
   if (!text || text === 'Undisclosed') return { min: null, max: null };
   const numbers: number[] = [];
   const matches = text.matchAll(/\$?([\d,]+)k?/gi);
@@ -48,30 +51,90 @@ function parseSalary(text: string): { min: number | null; max: number | null } {
   return { min: null, max: null };
 }
 
-function parseLocation(text: string): string[] {
+export function parseLocation(text: string): string[] {
   if (!text) return [];
   return text.split(/\s+or\s+|,\s*/).map((l) => l.trim()).filter(Boolean);
 }
 
+const COOKIE_MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
 /**
- * Run the standalone crawl script via child_process.
- * This avoids Next.js runtime constraints for Playwright.
+ * Ensure Cloudflare cookies are fresh. Uses Playwright to pass challenge if needed.
+ */
+function ensureFreshCookies(force?: boolean): Promise<{ refreshed: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    const cookieFile = join(process.cwd(), '.cf-cookies');
+
+    // Skip refresh if cookies are recent (unless forced)
+    if (!force && existsSync(cookieFile)) {
+      try {
+        const stat = statSync(cookieFile);
+        const age = Date.now() - stat.mtimeMs;
+        if (age < COOKIE_MAX_AGE_MS) {
+          console.log(`[cookie] Cookies are fresh (${Math.round(age / 60000)}min old), skipping refresh`);
+          resolve({ refreshed: false });
+          return;
+        }
+      } catch { /* stat failed, proceed with refresh */ }
+    }
+
+    console.log(`[cookie] Refreshing Cloudflare cookies via Playwright...`);
+    const scriptPath = join(process.cwd(), 'scripts', 'refresh-cf-cookies.ts');
+
+    execFile('npx', ['tsx', scriptPath], {
+      timeout: 120000, // 120s max for cookie refresh (Cloudflare challenge can be slow)
+      maxBuffer: 1024 * 1024,
+      cwd: process.cwd(),
+    }, (error, stdout, stderr) => {
+      if (stderr) {
+        for (const line of stderr.split('\n').filter(Boolean)) {
+          console.log(`[cookie] ${line}`);
+        }
+      }
+
+      if (error) {
+        console.log(`[cookie] WARNING: Cookie refresh failed: ${error.message}`);
+        resolve({ refreshed: false, error: error.message });
+        return;
+      }
+
+      try {
+        const result = JSON.parse(stdout);
+        if (result.success) {
+          console.log(`[cookie] Cookies refreshed successfully`);
+          resolve({ refreshed: true });
+        } else {
+          console.log(`[cookie] WARNING: Cookie refresh returned error: ${result.error}`);
+          resolve({ refreshed: false, error: result.error });
+        }
+      } catch {
+        console.log(`[cookie] WARNING: Could not parse cookie refresh output`);
+        resolve({ refreshed: false, error: 'Parse error' });
+      }
+    });
+  });
+}
+
+interface CrawlScriptResult {
+  cloudflare_blocked: boolean;
+  jobs: RawExtractedJob[];
+}
+
+/**
+ * Run the API crawl script via child_process.
+ * Returns jobs and whether Cloudflare blocked the request.
  */
 function runCrawlScript(
   queryParams: Record<string, unknown>,
-  delayMs: number,
-  fetchJd: boolean,
-): Promise<RawExtractedJob[]> {
+): Promise<CrawlScriptResult> {
   return new Promise((resolve, reject) => {
     const scriptPath = join(process.cwd(), 'scripts', 'crawl-extract.ts');
     const input = JSON.stringify({
       query_params: queryParams,
-      fetch_jd: fetchJd,
-      delay_ms: delayMs,
     });
 
     execFile('npx', ['tsx', scriptPath, input], {
-      timeout: 3600000, // 60 min max
+      timeout: 300000, // 5 min max (API calls are fast)
       maxBuffer: 50 * 1024 * 1024, // 50MB for JD text
       cwd: process.cwd(),
     }, (error, stdout, stderr) => {
@@ -82,13 +145,25 @@ function runCrawlScript(
       }
 
       if (error) {
+        // Exit code 2 = Cloudflare blocked
+        if ((error as any).code === 2) {
+          resolve({ cloudflare_blocked: true, jobs: [] });
+          return;
+        }
         reject(new Error(`Crawl script failed: ${error.message}`));
         return;
       }
 
       try {
-        const jobs = JSON.parse(stdout);
-        resolve(jobs);
+        const parsed = JSON.parse(stdout);
+        // Handle structured response with cloudflare_blocked flag
+        if (parsed.cloudflare_blocked) {
+          resolve({ cloudflare_blocked: true, jobs: [] });
+        } else if (Array.isArray(parsed)) {
+          resolve({ cloudflare_blocked: false, jobs: parsed });
+        } else {
+          resolve({ cloudflare_blocked: false, jobs: parsed.results || [] });
+        }
       } catch {
         reject(new Error(`Failed to parse crawl output: ${stdout.slice(0, 200)}`));
       }
@@ -135,6 +210,120 @@ function runJdFetchScript(
   });
 }
 
+/**
+ * Process raw extracted jobs through dedup + rules + insert.
+ * Shared by both automated crawl and manual bookmarklet import.
+ */
+export function processRawJobs(rawJobs: RawExtractedJob[]): Omit<CrawlResult, 'configId' | 'configName' | 'durationSec'> {
+  const rules = listRules(true);
+  const noH1bAction = getSetting('no_h1b_action', 'auto_exclude');
+  const blockedAction = getSetting('blocked_action', 'auto_exclude');
+  const jobNoVisaAction = getSetting('job_no_visa_action', 'auto_exclude');
+
+  const { jobs: existingJobs } = listJobs({ limit: 10000, offset: 0 });
+  const allExisting = [...existingJobs] as Job[];
+
+  const result = {
+    jobsFound: rawJobs.length,
+    newAfterDedup: 0,
+    filtered: 0,
+    imported: 0,
+    failed: 0,
+    errors: [] as string[],
+  };
+
+  for (const raw of rawJobs) {
+    try {
+      if (!raw.title || !raw.viewJobId) continue;
+
+      const salary = parseSalary(raw.salary);
+      const location = parseLocation(raw.location);
+      const company = findOrCreateCompany(raw.company || 'Unknown');
+
+      const dedupResult = checkDuplicate(
+        {
+          company_id: company.id,
+          title: raw.title,
+          source: 'hiring_cafe',
+          location,
+          jd_full_text: raw.jdText,
+        },
+        allExisting,
+      );
+
+      if (dedupResult.isDuplicate) continue;
+      result.newAfterDedup++;
+
+      const ruleResult = evaluateJob(
+        {
+          company_id: company.id,
+          company_name: company.display_name,
+          title: raw.title,
+          source: 'hiring_cafe',
+          location,
+          salary_min: salary.min,
+          salary_max: salary.max,
+          work_mode: raw.workMode?.toLowerCase() || null,
+          commitment: raw.commitment || null,
+          jd_full_text: raw.jdText || null,
+          visa_sponsorship: raw.jdText ? scanVisaSponsorship(raw.jdText) : null,
+        },
+        rules,
+        company,
+        { noH1bAction, blockedAction, jobNoVisaAction },
+      );
+
+      if (ruleResult.action === 'exclude') {
+        const inserted = insertJob({
+          company_id: company.id,
+          title: raw.title,
+          location,
+          salary_min: salary.min,
+          salary_max: salary.max,
+          work_mode: raw.workMode?.toLowerCase() || null,
+          commitment: raw.commitment || null,
+          jd_url: `https://hiring.cafe/viewjob/${raw.viewJobId}`,
+          apply_url: raw.applyUrl || null,
+          source: 'hiring_cafe',
+          source_id: raw.viewJobId,
+          status: 'archived_filtered',
+          notes: `Filtered: ${ruleResult.reason}`,
+        });
+        allExisting.push(inserted as unknown as Job);
+        result.filtered++;
+        continue;
+      }
+
+      const jdText = raw.jdText ? cleanJdText(raw.jdText) : null;
+      const inserted = insertJob({
+        company_id: company.id,
+        title: raw.title,
+        location,
+        salary_min: salary.min,
+        salary_max: salary.max,
+        work_mode: raw.workMode?.toLowerCase() || null,
+        commitment: raw.commitment || null,
+        jd_url: `https://hiring.cafe/viewjob/${raw.viewJobId}`,
+        apply_url: raw.applyUrl || null,
+        jd_full_text: jdText,
+        jd_fetch_status: jdText ? 'success' : 'failed',
+        jd_content_hash: jdText ? hashContent(jdText) : null,
+        source: 'hiring_cafe',
+        source_id: raw.viewJobId,
+        status: 'pending_eval',
+      });
+
+      allExisting.push(inserted as unknown as Job);
+      result.imported++;
+    } catch (e) {
+      result.failed++;
+      result.errors.push(`${raw.title}: ${(e as Error).message}`);
+    }
+  }
+
+  return result;
+}
+
 export async function crawlHiringCafe(configId?: number): Promise<CrawlResult[]> {
   const configs = configId
     ? [findSearchConfigById(configId)].filter(Boolean)
@@ -149,14 +338,9 @@ export async function crawlHiringCafe(configId?: number): Promise<CrawlResult[]>
   }
 
   const results: CrawlResult[] = [];
-  const rules = listRules(true);
-  const noH1bAction = getSetting('no_h1b_action', 'auto_exclude');
-  const blockedAction = getSetting('blocked_action', 'auto_exclude');
-  const jobNoVisaAction = getSetting('job_no_visa_action', 'auto_exclude');
-  const delayMs = getSettingNumber('scrape_delay_ms', 5000);
 
-  // Get all existing jobs for dedup
-  const { jobs: existingJobs } = listJobs({ limit: 10000, offset: 0 });
+  // Ensure Cloudflare cookies are fresh before crawling
+  await ensureFreshCookies();
 
   for (const config of configs) {
     if (!config) continue;
@@ -174,102 +358,28 @@ export async function crawlHiringCafe(configId?: number): Promise<CrawlResult[]>
     };
 
     try {
-      // Run standalone Playwright script (with JD fetch)
-      const rawJobs = await runCrawlScript(config.query_params as Record<string, unknown>, delayMs, true);
-      result.jobsFound = rawJobs.length;
+      // Run API crawl script, with Cloudflare retry
+      let crawlResult = await runCrawlScript(config.query_params as Record<string, unknown>);
 
-      // Process each job through dedup + rules + insert
-      const allExisting = [...existingJobs] as Job[];
-
-      for (const raw of rawJobs) {
-        try {
-          if (!raw.title || !raw.viewJobId) continue;
-
-          const salary = parseSalary(raw.salary);
-          const location = parseLocation(raw.location);
-          const company = findOrCreateCompany(raw.company || 'Unknown');
-
-          // Check duplicate
-          const dedupResult = checkDuplicate(
-            {
-              company_id: company.id,
-              title: raw.title,
-              source: 'hiring_cafe',
-              location,
-              jd_full_text: raw.jdText,
-            },
-            allExisting,
-          );
-
-          if (dedupResult.isDuplicate) continue;
-          result.newAfterDedup++;
-
-          // Evaluate with rules (including JD text)
-          const ruleResult = evaluateJob(
-            {
-              company_id: company.id,
-              company_name: company.display_name,
-              title: raw.title,
-              source: 'hiring_cafe',
-              location,
-              salary_min: salary.min,
-              salary_max: salary.max,
-              work_mode: raw.workMode?.toLowerCase() || null,
-              commitment: raw.commitment || null,
-              jd_full_text: raw.jdText || null,
-              visa_sponsorship: raw.jdText ? scanVisaSponsorship(raw.jdText) : null,
-            },
-            rules,
-            company,
-            { noH1bAction, blockedAction, jobNoVisaAction },
-          );
-
-          if (ruleResult.action === 'exclude') {
-            const inserted = insertJob({
-              company_id: company.id,
-              title: raw.title,
-              location,
-              salary_min: salary.min,
-              salary_max: salary.max,
-              work_mode: raw.workMode?.toLowerCase() || null,
-              commitment: raw.commitment || null,
-              jd_url: `https://hiring.cafe/viewjob/${raw.viewJobId}`,
-              source: 'hiring_cafe',
-              source_id: raw.viewJobId,
-              status: 'archived_filtered',
-              notes: `Filtered: ${ruleResult.reason}`,
-            });
-            allExisting.push(inserted as unknown as Job);
-            result.filtered++;
-            continue;
-          }
-
-          // Insert job with JD
-          const jdText = raw.jdText || null;
-          const inserted = insertJob({
-            company_id: company.id,
-            title: raw.title,
-            location,
-            salary_min: salary.min,
-            salary_max: salary.max,
-            work_mode: raw.workMode?.toLowerCase() || null,
-            commitment: raw.commitment || null,
-            jd_url: `https://hiring.cafe/viewjob/${raw.viewJobId}`,
-            jd_full_text: jdText,
-            jd_fetch_status: jdText ? 'success' : 'failed',
-            jd_content_hash: jdText ? hashContent(jdText) : null,
-            source: 'hiring_cafe',
-            source_id: raw.viewJobId,
-            status: 'pending_eval',
-          });
-
-          allExisting.push(inserted as unknown as Job);
-          result.imported++;
-        } catch (e) {
-          result.failed++;
-          result.errors.push(`${raw.title}: ${(e as Error).message}`);
+      if (crawlResult.cloudflare_blocked) {
+        console.log(`[crawl] Cloudflare blocked — force-refreshing cookies and retrying...`);
+        const refresh = await ensureFreshCookies(true);
+        if (refresh.error) {
+          result.errors.push(`Cookie refresh failed: ${refresh.error}`);
+        }
+        crawlResult = await runCrawlScript(config.query_params as Record<string, unknown>);
+        if (crawlResult.cloudflare_blocked) {
+          result.errors.push('Cloudflare blocked after cookie refresh — manual intervention may be needed');
         }
       }
+
+      const processed = processRawJobs(crawlResult.jobs);
+      result.jobsFound = processed.jobsFound;
+      result.newAfterDedup = processed.newAfterDedup;
+      result.filtered = processed.filtered;
+      result.imported = processed.imported;
+      result.failed = processed.failed;
+      result.errors.push(...processed.errors);
     } catch (e) {
       result.errors.push((e as Error).message);
     }

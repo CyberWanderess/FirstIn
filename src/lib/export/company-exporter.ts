@@ -11,8 +11,8 @@ export function exportCompaniesForResearch(companies: Company[], format: 'markdo
 
   const date = new Date().toISOString().split('T')[0];
   const jsonExample = config.enableChineseAffinity
-    ? '[{"name": "CompanyName", "industry": "...", "size": "...", "description": "...", "sponsors_h1b": true/false/null, "chinese_affinity": true/null, "application_limit": 3, "cooldown_months": 6, "ai_summary": "..."}]'
-    : '[{"name": "CompanyName", "industry": "...", "size": "...", "description": "...", "sponsors_h1b": true/false/null, "application_limit": 3, "cooldown_months": 6, "ai_summary": "..."}]';
+    ? '[{"name": "CompanyName", "industry": "...", "size": "...", "description": "...", "sponsors_h1b": true/false/null, "chinese_affinity": true/null, "application_limit": 3, "limit_period_months": 12, "cooldown_months": 6, "funding_round": "Series B", "ai_summary": "..."}]'
+    : '[{"name": "CompanyName", "industry": "...", "size": "...", "description": "...", "sponsors_h1b": true/false/null, "application_limit": 3, "limit_period_months": 12, "cooldown_months": 6, "funding_round": "Series B", "ai_summary": "..."}]';
 
   const lines: string[] = [
     `# Company Research Batch - ${date}`,
@@ -33,8 +33,11 @@ export function exportCompaniesForResearch(companies: Company[], format: 'markdo
     lines.push('- **chinese_affinity**: true if the company is Chinese-owned/founded, has a predominantly Chinese-speaking workforce, or is widely known for a large Chinese employee community. Only mark `true` with clear evidence. Use `null` if unknown or not applicable.');
   }
   lines.push(
-    '- **application_limit**: Maximum number of applications allowed per year across all positions. Search Glassdoor, Blind, and career forums for reports like "you can only apply to N roles per year" or "application cooldown". Use `null` if no limit is known or if the company allows unlimited applications.',
+    '- **name**: Use the exact company name as listed below — do not canonicalize or rename.',
+    '- **application_limit**: Maximum number of applications allowed within the rolling window. Search Glassdoor, Blind, and career forums for reports like "you can only apply to N roles". Use `null` if no limit is known.',
+    '- **limit_period_months**: The rolling window (in months) for the application_limit. E.g., Google is 3 per 1 month → limit=3, period=1. OpenAI is 5 per 6 months → limit=5, period=6. Default 12 (yearly) if limit exists but period is unknown. Use `null` if no application_limit.',
     '- **cooldown_months**: How many months you must wait after a failed interview before re-applying. Search for "reapply after rejection", "interview cooldown period" on Glassdoor/Blind. Use `0` if the company explicitly has no cooldown, `null` if unknown. Common values: 6, 12.',
+    '- **funding_round**: For startups/private companies, the latest funding round (e.g., "Seed", "Series A", "Series B", ..., "Late Stage"). Use "Public" for publicly traded companies, "Subsidiary" for wholly-owned subsidiaries, "Acquired" if recently acquired. Use `null` for large established public companies where this is not relevant.',
     '- **ai_summary**: Balanced assessment of company culture, growth, reputation, and any risks or concerns. Include both positives and negatives where relevant.',
     '',
     '---',

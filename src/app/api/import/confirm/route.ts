@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { ensureInitialized } from '@/lib/init';
 import { getDb } from '@/lib/db';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
-import { insertJob, listJobs } from '@/lib/repositories/job-repository';
+import { insertJob, listJobs, updateJob, findJobBySourceId, addJobSourceId } from '@/lib/repositories/job-repository';
 import { listRules } from '@/lib/repositories/rule-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
@@ -10,6 +10,7 @@ import { checkDuplicate, hashContent } from '@/lib/dedup';
 import { evaluateJob } from '@/lib/rule-engine';
 import { scanVisaSponsorship } from '@/lib/visa-scan';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
+import { cleanJdText } from '@/lib/jd-cleaner';
 import type { JobInsert, Job } from '@/types';
 
 export async function POST(req: NextRequest) {
@@ -47,12 +48,28 @@ export async function POST(req: NextRequest) {
           const companyName = item.company_name || 'Unknown';
           const company = findOrCreateCompany(companyName);
 
+          // Fast path: source_id
+          const itemSource = item.source || 'manual';
+          if (item.source_id && itemSource) {
+            const existingJobId = findJobBySourceId(itemSource, item.source_id);
+            if (existingJobId) {
+              duplicates++;
+              continue;
+            }
+          }
+
           // Check duplicate
           const dedupResult = checkDuplicate(
-            { ...item, company_id: company.id, source: item.source || 'manual' },
+            { ...item, company_id: company.id, source: itemSource },
             allExisting,
           );
           if (dedupResult.isDuplicate) {
+            if (dedupResult.mergeLocations && dedupResult.matchedJobId) {
+              updateJob(dedupResult.matchedJobId, { location: dedupResult.mergeLocations });
+            }
+            if (item.source_id && dedupResult.matchedJobId) {
+              addJobSourceId(dedupResult.matchedJobId, itemSource, item.source_id);
+            }
             duplicates++;
             continue;
           }
@@ -87,9 +104,9 @@ export async function POST(req: NextRequest) {
             commitment: item.commitment,
             jd_url: item.jd_url,
             apply_url: item.apply_url,
-            jd_full_text: item.jd_full_text,
+            jd_full_text: item.jd_full_text ? cleanJdText(item.jd_full_text) : null,
             jd_fetch_status: item.jd_full_text ? 'success' : 'pending',
-            jd_content_hash: item.jd_full_text ? hashContent(item.jd_full_text) : null,
+            jd_content_hash: item.jd_full_text ? hashContent(cleanJdText(item.jd_full_text)) : null,
             visa_sponsorship: item.jd_full_text ? scanVisaSponsorship(item.jd_full_text) : null,
             source: item.source || 'manual',
             source_id: item.source_id,

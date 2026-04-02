@@ -1,8 +1,8 @@
 import type { JobStatus } from '@/types';
 
 const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  new:                    ['pending_eval', 'archived_filtered', 'archived_manual'],
-  pending_eval:           ['pending_deep_analysis', 'ready_to_apply', 'archived_low_match', 'archived_filtered', 'archived_manual'],
+  pending_eval:           ['pending_deep_analysis', 'ready_to_apply', 'flagged', 'archived_low_match', 'archived_filtered', 'archived_manual'],
+  flagged:                ['pending_deep_analysis', 'ready_to_apply', 'archived_low_match', 'archived_manual'],
   pending_deep_analysis:  ['ready_to_apply_tailored', 'applied', 'archived_manual'],
   ready_to_apply_tailored: ['applied', 'archived_low_match', 'archived_manual'],
   ready_to_apply:         ['applied', 'archived_manual'],

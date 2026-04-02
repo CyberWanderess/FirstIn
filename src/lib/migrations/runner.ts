@@ -8,6 +8,12 @@ import { migration006 } from './006_company_cooldown';
 import { migration007 } from './007_rename_analyzed_status';
 import { migration008 } from './008_reset_mass_apply_candidates';
 import { migration009 } from './009_score_tags';
+import { migration010 } from './010_score_success';
+import { migration011 } from './011_limit_period';
+import { migration012 } from './012_funding_round';
+import { migration013 } from './013_salary_currency';
+import { migration014 } from './014_job_source_ids';
+import { migration015 } from './015_posted_at';
 
 interface Migration {
   id: number;
@@ -25,6 +31,12 @@ const migrations: Migration[] = [
   { id: 7, name: '007_rename_analyzed_status', up: migration007 },
   { id: 8, name: '008_reset_mass_apply_candidates', up: migration008 },
   { id: 9, name: '009_score_tags', up: migration009 },
+  { id: 10, name: '010_score_success', up: migration010 },
+  { id: 11, name: '011_limit_period', up: migration011 },
+  { id: 12, name: '012_funding_round', up: migration012 },
+  { id: 13, name: '013_salary_currency', up: migration013 },
+  { id: 14, name: '014_job_source_ids', up: migration014 },
+  { id: 15, name: '015_posted_at', up: migration015 },
 ];
 
 export function runMigrations(db: Database.Database): void {

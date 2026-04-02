@@ -1,8 +1,8 @@
 import { config } from '@/lib/config';
 import { getDb } from '@/lib/db';
-import { findCompanyByName, updateCompany } from '@/lib/repositories/company-repository';
+import { findCompanyByNameFuzzy, updateCompany } from '@/lib/repositories/company-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
-import type { ParseResult } from '@/types';
+import type { Company, ParseResult } from '@/types';
 
 export interface CompanyResearchItem {
   name: string;
@@ -12,7 +12,9 @@ export interface CompanyResearchItem {
   sponsors_h1b?: boolean | null;
   chinese_affinity?: boolean | null;
   application_limit?: number | null;
+  limit_period_months?: number | null;
   cooldown_months?: number | null;
+  funding_round?: string | null;
   ai_summary?: string;
 }
 
@@ -48,7 +50,9 @@ export function parseCompanyResearch(jsonText: string): ParseResult<CompanyResea
       sponsors_h1b: item.sponsors_h1b ?? null,
       chinese_affinity: item.chinese_affinity ?? null,
       application_limit: typeof item.application_limit === 'number' ? item.application_limit : null,
+      limit_period_months: typeof item.limit_period_months === 'number' ? item.limit_period_months : null,
       cooldown_months: typeof item.cooldown_months === 'number' ? item.cooldown_months : null,
+      funding_round: typeof item.funding_round === 'string' ? item.funding_round : null,
       ai_summary: item.ai_summary || undefined,
     });
   }
@@ -60,14 +64,19 @@ export function parseCompanyResearch(jsonText: string): ParseResult<CompanyResea
  * Apply company research results to the database.
  * Wraps in a transaction.
  */
-export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: number; errors: string[] } {
+function normalizeCompanyName(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: number; merged: number; errors: string[] } {
   const db = getDb();
   let updated = 0;
+  let merged = 0;
   const errors: string[] = [];
 
   const run = db.transaction(() => {
     for (const item of items) {
-      const company = findCompanyByName(item.name);
+      const company = findCompanyByNameFuzzy(item.name);
       if (!company) {
         errors.push(`Company not found: "${item.name}"`);
         continue;
@@ -82,7 +91,9 @@ export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: n
       if (item.description) updateData.description = item.description;
       if (item.ai_summary) updateData.ai_summary = item.ai_summary;
       if (item.application_limit !== undefined) updateData.application_limit = item.application_limit;
+      if (item.limit_period_months !== undefined) updateData.limit_period_months = item.limit_period_months;
       if (item.cooldown_months !== undefined) updateData.cooldown_months = item.cooldown_months;
+      if (item.funding_round !== undefined) updateData.funding_round = item.funding_round;
 
       // Handle chinese_affinity (full three-state)
       if (config.enableChineseAffinity) {
@@ -124,9 +135,30 @@ export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: n
         trigger: 'import',
         details: { fields_updated: Object.keys(updateData).join(', ') },
       });
+
+      // Auto-merge pending duplicate companies with similar names
+      const normalized = normalizeCompanyName(item.name);
+      const duplicates = db.prepare(`
+        SELECT * FROM companies
+        WHERE id != ? AND info_status = 'pending'
+        AND (name LIKE ? OR ? LIKE name || '%')
+      `).all(company.id, `${normalized}%`, normalized) as Company[];
+
+      for (const dup of duplicates) {
+        db.prepare(`UPDATE jobs SET company_id = ? WHERE company_id = ?`).run(company.id, dup.id);
+        db.prepare(`DELETE FROM companies WHERE id = ?`).run(dup.id);
+        merged++;
+        logOperation({
+          operation: 'company_merge',
+          entity_type: 'company',
+          entity_id: dup.id,
+          trigger: 'import',
+          details: { merged_into: company.id, merged_name: dup.display_name },
+        });
+      }
     }
   });
 
   run();
-  return { updated, errors };
+  return { updated, merged, errors };
 }

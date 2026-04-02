@@ -1,6 +1,6 @@
 export type JobStatus =
-  | 'new'
   | 'pending_eval'
+  | 'flagged'
   | 'pending_deep_analysis'
   | 'ready_to_apply_tailored'
   | 'ready_to_apply'
@@ -14,14 +14,14 @@ export type JobStatus =
   | 'archived_manual';
 
 export const JOB_STATUSES: readonly JobStatus[] = [
-  'new', 'pending_eval', 'pending_deep_analysis', 'ready_to_apply_tailored',
+  'pending_eval', 'flagged', 'pending_deep_analysis', 'ready_to_apply_tailored',
   'ready_to_apply', 'applied', 'interviewing', 'offer', 'rejected',
   'archived_filtered', 'archived_low_match', 'archived_no_response', 'archived_manual',
 ] as const;
 
 export const STATUS_LABELS: Record<string, string> = {
-  new: 'New',
   pending_eval: 'Pending Eval',
+  flagged: 'Flagged',
   pending_deep_analysis: 'Deep Analysis',
   ready_to_apply_tailored: 'Tailoring',
   ready_to_apply: 'Ready to Apply',
@@ -55,6 +55,7 @@ export interface Job {
   location: string[];
   salary_min: number | null;
   salary_max: number | null;
+  salary_currency: string;
   work_mode: string | null;
   commitment: string | null;
   jd_url: string | null;
@@ -66,10 +67,12 @@ export interface Job {
   source_id: string | null;
   status: JobStatus;
   score: number | null;
+  score_success: number | null;
   score_reason: string | null;
   deep_analysis: string | null;
   visa_sponsorship: string | null;
   score_tags: string[] | null;
+  posted_at: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -86,7 +89,9 @@ export interface JobWithCompany extends Job {
   application_strategy: string;
   strategy_reason: string | null;
   application_limit: number | null;
+  limit_period_months: number | null;
   cooldown_months: number | null;
+  funding_round: string | null;
   chinese_affinity: number | null;
   company_active_jobs?: number;
   company_total_jobs?: number;
@@ -99,6 +104,7 @@ export interface JobInsert {
   location: string[];
   salary_min?: number | null;
   salary_max?: number | null;
+  salary_currency?: string;
   work_mode?: string | null;
   commitment?: string | null;
   jd_url?: string | null;
@@ -110,9 +116,11 @@ export interface JobInsert {
   source_id?: string | null;
   status?: JobStatus;
   score?: number | null;
+  score_success?: number | null;
   score_reason?: string | null;
   deep_analysis?: string | null;
   visa_sponsorship?: string | null;
+  posted_at?: string | null;
   notes?: string | null;
 }
 
@@ -121,6 +129,7 @@ export interface JobUpdate {
   location?: string[];
   salary_min?: number | null;
   salary_max?: number | null;
+  salary_currency?: string;
   work_mode?: string | null;
   commitment?: string | null;
   jd_url?: string | null;
@@ -130,6 +139,7 @@ export interface JobUpdate {
   jd_content_hash?: string | null;
   status?: JobStatus;
   score?: number | null;
+  score_success?: number | null;
   score_reason?: string | null;
   deep_analysis?: string | null;
   visa_sponsorship?: string | null;

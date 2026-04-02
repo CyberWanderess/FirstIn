@@ -46,3 +46,8 @@ data/
 # local-only files
 Outside/
 research.md
+.cf-cookies
+jobhq.db
+jobhq.db-wal
+jobhq.db-shm
+logs/

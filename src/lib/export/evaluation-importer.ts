@@ -8,6 +8,7 @@ import { SCORE_TAGS } from '@/types';
 export interface EvaluationItem {
   id: number;
   score: number;
+  score_success: number;
   score_reason: string;
   score_tags?: string[];
   recommendation: 'proceed' | 'mass_apply' | 'skip' | 'flag';
@@ -42,6 +43,10 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
       warnings.push(`Item ${i + 1} (id=${item.id}): score must be 1-10`);
       continue;
     }
+    if (typeof item.score_success !== 'number' || item.score_success < 1 || item.score_success > 10) {
+      warnings.push(`Item ${i + 1} (id=${item.id}): score_success must be 1-10`);
+      continue;
+    }
     if (!['proceed', 'mass_apply', 'skip', 'flag'].includes(item.recommendation)) {
       warnings.push(`Item ${i + 1} (id=${item.id}): recommendation must be proceed/mass_apply/skip/flag`);
       continue;
@@ -51,12 +56,32 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
     const score_tags = Array.isArray(item.score_tags)
       ? item.score_tags.filter((t: unknown) => typeof t === 'string' && (SCORE_TAGS as readonly string[]).includes(t))
       : undefined;
+
+    // Warn if score_reason is missing
+    const score_reason = item.score_reason && typeof item.score_reason === 'string' && item.score_reason.trim()
+      ? item.score_reason.trim()
+      : '(no reason provided)';
+    if (score_reason === '(no reason provided)') {
+      warnings.push(`Item ${i + 1} (id=${item.id}): missing score_reason`);
+    }
+
+    // Auto-derive recommendation from score_success (flag is preserved as-is)
+    let recommendation: 'proceed' | 'mass_apply' | 'skip' | 'flag' = item.recommendation;
+    if (item.recommendation !== 'flag') {
+      const derived = item.score_success >= 7 ? 'proceed' : item.score_success >= 4 ? 'mass_apply' : 'skip';
+      if (derived !== item.recommendation) {
+        warnings.push(`Item ${i + 1} (id=${item.id}): recommendation auto-corrected from '${item.recommendation}' to '${derived}' based on score_success=${item.score_success}`);
+        recommendation = derived;
+      }
+    }
+
     items.push({
       id: item.id,
       score: item.score,
-      score_reason: item.score_reason || '',
+      score_success: item.score_success,
+      score_reason,
       score_tags: score_tags?.length ? score_tags : undefined,
-      recommendation: item.recommendation,
+      recommendation,
       h1b_sponsorship: h1b,
     });
   }
@@ -95,6 +120,7 @@ export function applyEvaluationResults(
         // flag — keep current status, just update score
         const flagUpdate: Record<string, unknown> = {
           score: item.score,
+          score_success: item.score_success,
           score_reason: item.score_reason,
           notes: job.notes ? `${job.notes}\n[Flagged] ${item.score_reason}` : `[Flagged] ${item.score_reason}`,
         };
@@ -111,7 +137,7 @@ export function applyEvaluationResults(
           entity_type: 'job',
           entity_id: item.id,
           trigger: 'import',
-          details: { score: item.score, recommendation: 'flag' },
+          details: { score: item.score, score_success: item.score_success, recommendation: 'flag' },
         });
 
         updated++;
@@ -127,6 +153,7 @@ export function applyEvaluationResults(
 
       const evalUpdate: Record<string, unknown> = {
         score: item.score,
+        score_success: item.score_success,
         score_reason: item.score_reason,
         status: targetStatus,
       };
@@ -143,7 +170,7 @@ export function applyEvaluationResults(
         entity_type: 'job',
         entity_id: item.id,
         trigger: 'import',
-        details: { score: item.score, from: job.status, to: targetStatus, recommendation: item.recommendation, h1b_sponsorship: item.h1b_sponsorship },
+        details: { score: item.score, score_success: item.score_success, from: job.status, to: targetStatus, recommendation: item.recommendation, h1b_sponsorship: item.h1b_sponsorship },
       });
 
       updated++;

@@ -1,0 +1,34 @@
+{
+  "_note": "Find Greenhouse board_token from: https://boards.greenhouse.io/{token}. Find Lever slug from: https://jobs.lever.co/{slug}. Find Ashby slug from: https://jobs.ashbyhq.com/{slug}.",
+  "greenhouse": [
+    { "board_token": "xai", "company": "xAI" },
+    { "board_token": "airbnb", "company": "Airbnb" },
+    { "board_token": "stripe", "company": "Stripe" },
+    { "board_token": "discord", "company": "Discord" },
+    { "board_token": "coinbase", "company": "Coinbase" },
+    { "board_token": "figma", "company": "Figma" },
+    { "board_token": "databricks", "company": "Databricks" },
+    { "board_token": "cloudflare", "company": "Cloudflare" },
+    { "board_token": "brex", "company": "Brex" }
+  ],
+  "lever": [
+    { "company_slug": "spotify", "company": "Spotify" },
+    { "company_slug": "atlassian", "company": "Atlassian" }
+  ],
+  "ashby": [
+    { "company_slug": "openai", "company": "OpenAI" },
+    { "company_slug": "cohere", "company": "Cohere" },
+    { "company_slug": "perplexity", "company": "Perplexity AI" }
+  ],
+  "jsearch": {
+    "queries": [
+      "technical program manager",
+      "engineering program manager",
+      "TPM AI machine learning",
+      "technical program manager remote"
+    ],
+    "location": "United States",
+    "date_posted": "3days",
+    "num_pages": 4
+  }
+}

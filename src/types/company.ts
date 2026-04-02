@@ -18,12 +18,18 @@ export interface Company {
   application_strategy: ApplicationStrategy;
   strategy_reason: string | null;
   application_limit: number | null;
+  limit_period_months: number | null;
   cooldown_months: number | null;
+  funding_round: string | null;
   info_status: CompanyInfoStatus;
   chinese_affinity: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CompanyWithSources extends Company {
+  sources: string[];
 }
 
 export interface CompanyInsert {
@@ -37,7 +43,9 @@ export interface CompanyInsert {
   application_strategy?: ApplicationStrategy;
   strategy_reason?: string | null;
   application_limit?: number | null;
+  limit_period_months?: number | null;
   cooldown_months?: number | null;
+  funding_round?: string | null;
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;
@@ -53,7 +61,9 @@ export interface CompanyUpdate {
   application_strategy?: ApplicationStrategy;
   strategy_reason?: string | null;
   application_limit?: number | null;
+  limit_period_months?: number | null;
   cooldown_months?: number | null;
+  funding_round?: string | null;
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;

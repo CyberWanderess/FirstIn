@@ -5,10 +5,14 @@ import { countJobsByStatus } from '@/lib/repositories/job-repository';
 import { getRecentOperations } from '@/lib/repositories/operation-log-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { CrawlTrigger } from '@/components/crawl-trigger';
+import { StatusBadge } from '@/components/status-badge';
+import { STATUS_LABELS } from '@/types';
+import type { OperationLog } from '@/types';
+import type { ReactNode } from 'react';
 
 const STATUS_GROUPS = [
-  { label: 'New', statuses: ['new'], color: 'bg-blue-100 text-blue-800' },
   { label: 'Pending Eval', statuses: ['pending_eval'], color: 'bg-yellow-100 text-yellow-800' },
+  { label: 'Flagged', statuses: ['flagged'], color: 'bg-amber-100 text-amber-800' },
   { label: 'Deep Analysis', statuses: ['pending_deep_analysis'], color: 'bg-purple-100 text-purple-800' },
   { label: 'Tailored', statuses: ['ready_to_apply_tailored'], color: 'bg-indigo-100 text-indigo-800' },
   { label: 'Ready to Apply', statuses: ['ready_to_apply'], color: 'bg-green-100 text-green-800' },
@@ -24,17 +28,18 @@ export const dynamic = 'force-dynamic';
 export default function DashboardPage() {
   ensureInitialized();
   const statusCounts = countJobsByStatus();
-  const recentOps = getRecentOperations(undefined, 10);
+  const batchOps = getRecentOperations(undefined, 10, 'batch');
+  const jobOps = getRecentOperations(undefined, 10, 'job');
 
   const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
   const pendingEval = statusCounts['pending_eval'] || 0;
+  const flaggedCount = statusCounts['flagged'] || 0;
   const readyToApply = statusCounts['ready_to_apply'] || 0;
-  const newCount = statusCounts['new'] || 0;
 
   // Find last crawl/import operation
   const lastActivity = config.enableCrawler
-    ? recentOps.find((op) => op.operation === 'crawl')
-    : recentOps.find((op) => op.operation === 'import');
+    ? batchOps.find((op) => op.operation === 'crawl')
+    : batchOps.find((op) => op.operation === 'import');
 
   const setupCompleted = getSetting('setup_completed', '') === 'true';
 
@@ -68,11 +73,11 @@ export default function DashboardPage() {
             <span className="font-medium text-zinc-900">
               Total: {total} jobs
             </span>
-            {newCount > 0 && (
-              <span className="text-blue-600">New: {newCount}</span>
-            )}
             {pendingEval > 0 && (
               <span className="text-yellow-600">Pending eval: {pendingEval}</span>
+            )}
+            {flaggedCount > 0 && (
+              <span className="text-amber-600">Flagged: {flaggedCount}</span>
             )}
             {readyToApply > 0 && (
               <span className="text-green-600">Ready to apply: {readyToApply}</span>
@@ -102,53 +107,118 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Recent activity */}
-      <div className="bg-white border border-zinc-200 rounded-lg">
-        <div className="px-4 py-3 border-b border-zinc-200">
-          <h2 className="font-semibold text-zinc-900">Recent Activity</h2>
-        </div>
-        <div className="divide-y divide-zinc-100">
-          {recentOps.length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-zinc-400">No activity yet</div>
-          )}
-          {recentOps.map((op) => (
-            <div key={op.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
-              <span className="text-zinc-400 w-36 shrink-0">
-                {new Date(op.created_at).toLocaleString()}
-              </span>
-              <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-zinc-100 text-zinc-600">
-                {op.operation}
-              </span>
-              <span className="text-zinc-600">
-                {op.entity_type}
-                {op.entity_id ? ` #${op.entity_id}` : ''}
-              </span>
-              <span className="text-zinc-400 truncate">
-                {formatDetails(op.details)}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Recent activity — split into Batch Operations and Job Activity */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ActivitySection title="Batch Operations" ops={batchOps} />
+        <ActivitySection title="Job Activity" ops={jobOps} />
       </div>
     </div>
   );
 }
 
-function formatDetails(details: Record<string, unknown>): string {
-  if (details.from !== undefined && details.to !== undefined) {
-    return `${details.from || '(none)'} → ${details.to}`;
+function ActivitySection({ title, ops }: { title: string; ops: OperationLog[] }) {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-lg">
+      <div className="px-4 py-3 border-b border-zinc-200">
+        <h2 className="font-semibold text-zinc-900">{title}</h2>
+      </div>
+      <div className="divide-y divide-zinc-100">
+        {ops.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm text-zinc-400">No activity yet</div>
+        )}
+        {ops.map((op) => (
+          <div key={op.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
+            <span className="text-zinc-400 w-28 shrink-0 text-xs">
+              {new Date(op.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
+              {new Date(op.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <span className="inline-block px-1.5 py-0.5 text-xs rounded bg-zinc-100 text-zinc-600 shrink-0">
+              {op.operation}
+            </span>
+            <span className="shrink-0 flex items-center gap-1.5">
+              {formatDetails(op)}
+            </span>
+            <span className="text-zinc-600 truncate">
+              {formatEntity(op)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function formatEntity(op: OperationLog): ReactNode {
+  if (op.entity_type === 'job' && op.entity_id) {
+    const title = op.job_title || 'Unknown';
+    const company = op.company_name ? ` @ ${op.company_name}` : '';
+    return (
+      <Link href={`/jobs/${op.entity_id}`} className="hover:text-blue-600 hover:underline">
+        #{op.entity_id} {title}{company}
+      </Link>
+    );
   }
-  if (details.jobs_found !== undefined) {
-    return `Found ${details.jobs_found}, new: ${details.new_after_dedup}`;
+  return null;
+}
+
+const REJECTION_LABELS: Record<string, string> = {
+  resume: 'Resume',
+  hr_screen: 'HR Screen',
+  hm_interview: 'HM Interview',
+  final_round: 'Final Round',
+  other: 'Other',
+  // Legacy Chinese values
+  '简历拒': 'Resume',
+  'OA拒': 'OA',
+  '面试拒': 'Interview',
+  '其他': 'Other',
+};
+
+function rejectionLabel(reason: string): string {
+  return REJECTION_LABELS[reason] || reason;
+}
+
+function formatDetails(op: OperationLog): ReactNode {
+  const d = op.details;
+
+  switch (op.operation) {
+    case 'status_change':
+      if (op.entity_type === 'batch') {
+        return `Rejections: ${d.matched_updated ?? 0} updated, ${d.unmatched_created ?? 0} created`;
+      }
+      if (!d.to) return null;
+      return (
+        <span className="flex items-center gap-1">
+          <StatusBadge status={String(d.to)} />
+          {d.reason ? <span className="text-zinc-400 text-xs">({rejectionLabel(String(d.reason))})</span> : null}
+        </span>
+      );
+    case 'score_update': {
+      return (
+        <span className="flex items-center gap-1.5">
+          {d.score !== undefined && <span>Score: {String(d.score)}</span>}
+          {d.to !== undefined && <StatusBadge status={String(d.to)} />}
+        </span>
+      );
+    }
+    case 'crawl':
+      return `Found ${d.jobs_found ?? 0}, new: ${d.new_after_dedup ?? 0}, imported: ${d.imported ?? d.new_after_dedup ?? 0}, filtered: ${d.filtered ?? 0}`;
+    case 'import':
+      return `Total: ${d.total ?? 0}, imported: ${d.imported ?? 0}, dup: ${d.duplicates ?? d.dup ?? 0}`;
+    case 'evaluate':
+      return d.evaluated !== undefined ? `Evaluated: ${d.evaluated}` : '';
+    case 'jd_fetch':
+      return d.fetched !== undefined ? `Fetched: ${d.fetched}` : '';
+    case 'visa_scan':
+      return d.scanned !== undefined ? `Scanned: ${d.scanned}` : '';
+    default: {
+      if (d.to !== undefined) {
+        return <StatusBadge status={String(d.to)} />;
+      }
+      if (d.field !== undefined) {
+        return `${d.field}: ${d.from} → ${d.to}`;
+      }
+      return null;
+    }
   }
-  if (details.total !== undefined) {
-    return `Total: ${details.total}, imported: ${details.imported}`;
-  }
-  if (details.score !== undefined) {
-    return `Score: ${details.score}`;
-  }
-  if (details.field !== undefined) {
-    return `${details.field}: ${details.from} → ${details.to}`;
-  }
-  return '';
 }

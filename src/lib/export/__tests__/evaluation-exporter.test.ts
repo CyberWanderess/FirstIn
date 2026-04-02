@@ -21,6 +21,7 @@ function makeJob(overrides: Partial<JobWithCompany> = {}): JobWithCompany {
     source_id: null,
     status: 'pending_eval',
     score: null,
+    score_success: null,
     score_reason: null,
     deep_analysis: null,
     visa_sponsorship: null,

@@ -21,8 +21,10 @@ export type OperationType =
   | 'import'
   | 'evaluate'
   | 'company_update'
+  | 'company_merge'
   | 'score_update'
-  | 'visa_scan';
+  | 'visa_scan'
+  | 'merge';
 
 export type OperationEntityType = 'job' | 'company' | 'batch';
 
@@ -36,6 +38,8 @@ export interface OperationLog {
   trigger: OperationTrigger;
   details: Record<string, unknown>;
   created_at: string;
+  job_title?: string | null;
+  company_name?: string | null;
 }
 
 export interface OperationLogInsert {
@@ -54,6 +58,8 @@ export interface RuleResult {
 
 export interface DedupResult {
   isDuplicate: boolean;
-  matchType: 'exact' | 'fuzzy' | 'content' | null;
+  matchType: 'source_id' | 'exact' | 'fuzzy' | 'content' | null;
   matchedJobId?: number;
+  /** When true, the candidate has new location(s) that should be merged into the matched job */
+  mergeLocations?: string[];
 }

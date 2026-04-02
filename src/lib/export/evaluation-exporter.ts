@@ -1,4 +1,5 @@
 import type { JobWithCompany } from '@/types';
+import { cleanJdText } from '@/lib/jd-cleaner';
 
 /**
  * Export jobs for evaluation, including company context.
@@ -22,14 +23,39 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '## Instructions',
     'For each job, evaluate fit and return a JSON array:',
     '```json',
-    '[{"id": 42, "score": 8, "score_reason": "Strong match because...", "score_tags": ["strong_match"], "recommendation": "proceed", "h1b_sponsorship": "unknown"}]',
+    '[{"id": 42, "score": 7, "score_success": 8, "score_reason": "PMO governance + AI/ML portfolio alignment. Company has strong H1B track record. Salary competitive.", "score_tags": ["strong_match"], "recommendation": "proceed", "h1b_sponsorship": "unknown"}]',
     '```',
     '',
-    'Scoring: 1-10 scale. Recommendations:',
-    '- **proceed**: Good match, worth pursuing with a tailored application (typically score >= 7)',
-    '- **mass_apply**: Worth applying for practice or volume. Use when: the role is clearly down-level but the company has no cooldown risk (cooldown_months = 0 or unknown), OR it\'s a small company where applying carries little risk, OR the position is rare/interesting enough to try even without a perfect match. Typical score: 4-6.',
-    '- **skip**: Poor match, archive (typically score < 4)',
-    '- **flag**: Uncertain, needs manual review',
+    '**IMPORTANT: score_reason is REQUIRED.** Write 1-2 sentences explaining why you gave this score. Include key match/mismatch factors. Do NOT leave it empty.',
+    '',
+    '## Dual Scoring (1-10 scale)',
+    '',
+    '**score** (Attractiveness): How appealing the job is to the candidate.',
+    '- Salary and total compensation',
+    '- Company brand, reputation, and growth trajectory',
+    '- Growth potential and career development',
+    '- Tech stack interest and engineering culture',
+    '',
+    '**score_success** (Success Rate): Probability of getting hired.',
+    '- Skill match: JD requirements vs candidate\'s actual skills',
+    '- YoE match: JD years requirement vs actual experience',
+    '- H1B/visa friendliness: company sponsor history, JD mentions',
+    '',
+    '**score_success calibration — avoid systematic underscoring:**',
+    '- TPM/PM is a transferable skill. Domain gap alone should NOT drop score_success below 4. Domain can be learned; cross-functional orchestration ability cannot.',
+    '- If JD emphasizes cross-functional coordination, stakeholder management, delivery under ambiguity → candidate\'s CORE strengths, add +1-2 to score_success.',
+    '- H1B: only penalize if JD explicitly says no sponsorship. If unknown (most cases), treat as neutral.',
+    '- score_success 8-9: Direct skill + domain + level match',
+    '- score_success 6-7: Good skill match, minor gap (domain or level)',
+    '- score_success 4-5: Transferable skills, notable gap but realistic shot',
+    '- score_success 1-3: Hard blockers (no visa, citizenship, physical construction) or fundamental mismatch',
+    '',
+    '## Recommendations (auto-derived from score_success)',
+    'Recommendation is automatically determined by score_success. You may still provide it but it will be overridden:',
+    '- **proceed**: score_success >= 7',
+    '- **mass_apply**: score_success 4-6',
+    '- **skip**: score_success < 4',
+    '- **flag**: Use ONLY when genuinely uncertain and need manual review (will not be auto-overridden)',
     '',
     'H1B Sponsorship: Based on the JD text, assess whether this role offers visa/H1B sponsorship.',
     '- **"yes"**: JD explicitly mentions sponsorship is available',
@@ -41,7 +67,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '',
     'Negative (indicate weaknesses):',
     '- **downpay**: Salary significantly below market/expectations',
-    '- **down_level**: Role is below candidate\'s experience level',
+    '- **down_level**: Role TITLE/LEVEL is clearly below candidate (e.g., Associate, Junior, Coordinator, L4/TPM II). Do NOT use for domain mismatch — use domain_gap instead.',
     '- **skill_gap**: Missing key required technical skills',
     '- **domain_gap**: No experience in the required industry/domain',
     '- **exp_gap**: Significantly under the years-of-experience requirement',
@@ -63,6 +89,15 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '  - If cooldown_months is 0 or unknown (null): low risk to try, be more lenient.',
     '  - If cooldown_months > 6: only recommend proceed if the match is genuinely strong.',
     '- Small companies and rare/niche positions: be more lenient, as these opportunities are harder to come by.',
+    '',
+    '## Calibration (score / score_success)',
+    '- NVIDIA TPM AI Portfolio = 9/8 (direct AI/ML match)',
+    '- OpenAI Security/Compliance TPM = 9/7 (compliance depth + frontier AI company)',
+    '- Netflix TPM5 Cross-functional = 9/7 (top comp, cross-functional TPM)',
+    '- Google AI PM = 8/6 (good brand but broad role, moderate domain gap)',
+    '- HP Ads Monetization = 7/7 (candidate built the same pipeline at OPPO)',
+    '- Crusoe Cloud Product TPM = 6/5 (good company, different TPM specialty)',
+    '- NVIDIA Principal Infra = 3/1 (physical DC builds, hard blocker)',
     '',
     '---',
     '',
@@ -96,7 +131,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
 
     if (job.jd_full_text) {
       lines.push('**Full Job Description:**');
-      lines.push(job.jd_full_text);
+      lines.push(cleanJdText(job.jd_full_text));
     } else {
       lines.push('**Full Job Description:** Not available');
       if (job.jd_url) lines.push(`JD URL: ${job.jd_url}`);

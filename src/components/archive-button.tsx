@@ -31,8 +31,8 @@ export function ArchiveButton({ jobId }: { jobId: number }) {
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || 'Failed to archive');
+        const text = await res.text();
+        try { alert(JSON.parse(text).error || 'Failed to archive'); } catch { alert(text || 'Failed to archive'); }
         return;
       }
       router.refresh();

@@ -20,7 +20,7 @@ const SETTING_SECTIONS: { label: string; keys: string[]; id: string; crawlerOnly
   {
     id: 'filtering',
     label: 'Filtering & Evaluation',
-    keys: ['no_h1b_action', 'job_no_visa_action', 'blocked_action', 'eval_score_threshold', 'archive_no_response_days'],
+    keys: ['no_h1b_action', 'job_no_visa_action', 'blocked_action', 'eval_score_threshold', 'archive_no_response_days', 'expiry_days'],
   },
   {
     id: 'crawler',
@@ -31,7 +31,7 @@ const SETTING_SECTIONS: { label: string; keys: string[]; id: string; crawlerOnly
 ];
 
 const CATEGORIZED_KEYS = new Set(SETTING_SECTIONS.flatMap((s) => s.keys));
-const HIDDEN_KEYS = new Set(['resume_text', 'setup_completed']);
+const HIDDEN_KEYS = new Set(['resume_text', 'setup_completed', 'extension_api_token']);
 
 export function SettingsClient({ initialSettings, enableCrawler = true }: { initialSettings: Setting[]; enableCrawler?: boolean }) {
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
@@ -40,6 +40,43 @@ export function SettingsClient({ initialSettings, enableCrawler = true }: { init
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedKey, setSavedKey] = useState<string | null>(null);
+
+  // Extension token state
+  const [tokenVisible, setTokenVisible] = useState(false);
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const hasToken = settings.some((s) => s.key === 'extension_api_token' && s.value);
+
+  async function handleGenerateToken() {
+    setTokenLoading(true);
+    setError(null);
+    try {
+      const res = await fetchApi<{ token: string }>('/api/settings/extension-token', { method: 'POST' });
+      if (!res.success) throw new Error(res.error || 'Failed to generate token');
+      setGeneratedToken(res.data!.token);
+      setTokenVisible(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTokenLoading(false);
+    }
+  }
+
+  async function handleRevokeToken() {
+    setTokenLoading(true);
+    setError(null);
+    try {
+      const res = await fetchApi<{ revoked: boolean }>('/api/settings/extension-token', { method: 'DELETE' });
+      if (!res.success) throw new Error(res.error || 'Failed to revoke token');
+      setGeneratedToken(null);
+      setTokenVisible(false);
+      setSettings((prev) => prev.map((s) => s.key === 'extension_api_token' ? { ...s, value: '' } : s));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTokenLoading(false);
+    }
+  }
 
   // Resume text state
   const resumeSetting = settings.find((s) => s.key === 'resume_text');
@@ -204,6 +241,93 @@ export function SettingsClient({ initialSettings, enableCrawler = true }: { init
           {error}
         </div>
       )}
+
+      {/* Extension Token */}
+      <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-zinc-900">Chrome Extension</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">API token for the Chrome Extension to connect to JobHQ</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {(hasToken || generatedToken) && (
+              <button
+                onClick={handleRevokeToken}
+                disabled={tokenLoading}
+                className="px-3 py-1.5 text-sm font-medium border border-red-300 text-red-700 rounded-md hover:bg-red-50 disabled:opacity-50 transition-colors"
+              >
+                Revoke
+              </button>
+            )}
+            <button
+              onClick={handleGenerateToken}
+              disabled={tokenLoading}
+              className="px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            >
+              {tokenLoading ? 'Working...' : hasToken || generatedToken ? 'Regenerate Token' : 'Generate Token'}
+            </button>
+          </div>
+        </div>
+        {generatedToken && tokenVisible && (
+          <div className="bg-zinc-50 border border-zinc-200 rounded-md p-3 space-y-2">
+            <p className="text-xs text-zinc-600">Copy this token to your Chrome Extension settings. It will only be shown once.</p>
+            <div className="flex gap-2">
+              <code className="flex-1 bg-white border border-zinc-300 rounded px-3 py-2 text-xs font-mono text-zinc-900 break-all select-all">
+                {generatedToken}
+              </code>
+              <button
+                onClick={() => {
+                  if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(generatedToken);
+                  } else {
+                    const ta = document.createElement('textarea');
+                    ta.value = generatedToken;
+                    ta.style.position = 'fixed';
+                    ta.style.left = '-9999px';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                  }
+                }}
+                className="px-3 py-2 text-xs font-medium border border-zinc-300 rounded hover:bg-zinc-100 transition-colors whitespace-nowrap"
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+        )}
+        {!generatedToken && hasToken && (
+          <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">Token is configured. Regenerate to get a new one.</p>
+        )}
+        <div className="flex items-center gap-3 pt-2 border-t border-zinc-100">
+          <a
+            href="/api/extension/download"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Download Extension
+          </a>
+          <span className="text-xs text-zinc-500">Load in Chrome: chrome://extensions → Developer mode → Load unpacked</span>
+        </div>
+      </div>
+
+      {/* Database Export */}
+      <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-zinc-900">Database</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">Download a full copy of the SQLite database</p>
+          </div>
+          <a
+            href="/api/export/database"
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium border border-zinc-300 rounded-md hover:bg-zinc-50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Download Database
+          </a>
+        </div>
+      </div>
 
       {/* Resume */}
       <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-3">

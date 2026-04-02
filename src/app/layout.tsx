@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/companies", label: "Companies" },
   { href: "/evaluate", label: "Evaluate" },
   { href: "/import", label: "Import" },
+  { href: "/dedup", label: "Dedup" },
   { href: "/rules", label: "Rules" },
   { href: "/settings", label: "Settings" },
 ];

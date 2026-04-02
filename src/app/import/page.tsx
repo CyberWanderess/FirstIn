@@ -126,11 +126,70 @@ ${PROMPT_SHARED}
 export default function ImportPage() {
   return (
     <div className="space-y-8">
+      <CrawlImportSection />
+      <hr className="border-zinc-200" />
       <PromptTemplateSection />
       <hr className="border-zinc-200" />
       <ImportSection />
       <hr className="border-zinc-200" />
       <SeedSection />
+    </div>
+  );
+}
+
+function CrawlImportSection() {
+  const [json, setJson] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [result, setResult] = useState<string>('');
+
+  async function handleImport() {
+    if (!json.trim()) return;
+    setStatus('loading');
+    try {
+      const parsed = JSON.parse(json);
+      const body = parsed.jobs ? parsed : { jobs: Array.isArray(parsed) ? parsed : [parsed] };
+
+      const res = await fetch('/api/crawl/import-raw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Import failed');
+      const d = data.data;
+      setResult(`Received: ${d.received} | Mapped: ${d.mapped} | New: ${d.newAfterDedup} | Imported: ${d.imported} | Filtered: ${d.filtered}`);
+      setStatus('success');
+      setJson('');
+    } catch (e) {
+      setResult((e as Error).message);
+      setStatus('error');
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-semibold text-zinc-900">Hiring.cafe Crawl Import</h2>
+      <p className="text-sm text-zinc-600">
+        Paste the JSON copied from the crawl script (run on hiring.cafe console).
+      </p>
+      <textarea
+        value={json}
+        onChange={(e) => { setJson(e.target.value); setStatus('idle'); }}
+        placeholder='Paste crawl output here ({"jobs": [...]})'
+        rows={4}
+        className="w-full px-3 py-2 text-sm border border-zinc-300 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-400 font-mono"
+      />
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleImport}
+          disabled={!json.trim() || status === 'loading'}
+          className="px-4 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 transition-colors disabled:bg-zinc-300 disabled:cursor-not-allowed"
+        >
+          {status === 'loading' ? 'Importing...' : 'Import'}
+        </button>
+        {status === 'success' && <span className="text-sm text-green-600">{result}</span>}
+        {status === 'error' && <span className="text-sm text-red-600">{result}</span>}
+      </div>
     </div>
   );
 }
@@ -147,7 +206,7 @@ function PromptTemplateSection() {
   const prompt = buildPrompt(mode, start, end);
 
   function handleCopy() {
-    navigator.clipboard.writeText(prompt).then(() => {
+    (navigator.clipboard ? navigator.clipboard.writeText(prompt) : Promise.reject()).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }).catch(() => {

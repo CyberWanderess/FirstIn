@@ -5,16 +5,34 @@ import { useRouter } from 'next/navigation';
 import { JOB_STATUSES, STATUS_LABELS } from '@/types';
 import { useClickOutside } from '@/hooks/use-click-outside';
 
+const SORT_OPTIONS = [
+  { value: 'created_at', label: 'Date Added' },
+  { value: 'updated_at', label: 'Last Updated' },
+  { value: 'score_success', label: 'Success Rate' },
+  { value: 'score', label: 'Attractiveness' },
+  { value: 'salary_max', label: 'Salary' },
+  { value: 'status_changed_at', label: 'Status Changed' },
+  { value: 'company_name', label: 'Company' },
+];
+
 export function JobFilterBar({
   initialStatus,
   initialQ,
   initialSort,
   initialOrder,
+  initialSort2,
+  initialOrder2,
+  initialSort3,
+  initialOrder3,
 }: {
   initialStatus?: string;
   initialQ?: string;
   initialSort: string;
   initialOrder: string;
+  initialSort2?: string;
+  initialOrder2?: string;
+  initialSort3?: string;
+  initialOrder3?: string;
 }) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(() => {
@@ -24,6 +42,10 @@ export function JobFilterBar({
   const [q, setQ] = useState(initialQ || '');
   const [sort, setSort] = useState(initialSort);
   const [order, setOrder] = useState(initialOrder);
+  const [sort2, setSort2] = useState(initialSort2 || '');
+  const [order2, setOrder2] = useState(initialOrder2 || 'DESC');
+  const [sort3, setSort3] = useState(initialSort3 || '');
+  const [order3, setOrder3] = useState(initialOrder3 || 'DESC');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +70,14 @@ export function JobFilterBar({
     if (q.trim()) params.set('q', q.trim());
     if (sort !== 'created_at') params.set('sort', sort);
     if (order !== 'DESC') params.set('order', order);
+    if (sort2) {
+      params.set('sort2', sort2);
+      if (order2 !== 'DESC') params.set('order2', order2);
+    }
+    if (sort3) {
+      params.set('sort3', sort3);
+      if (order3 !== 'DESC') params.set('order3', order3);
+    }
     const qs = params.toString();
     router.push(`/jobs${qs ? `?${qs}` : ''}`);
   }
@@ -57,10 +87,14 @@ export function JobFilterBar({
     setQ('');
     setSort('created_at');
     setOrder('DESC');
+    setSort2('');
+    setOrder2('DESC');
+    setSort3('');
+    setOrder3('DESC');
     router.push('/jobs');
   }
 
-  const hasFilters = selectedStatuses.size > 0 || q.trim() || sort !== 'created_at' || order !== 'DESC';
+  const hasFilters = selectedStatuses.size > 0 || q.trim() || sort !== 'created_at' || order !== 'DESC' || !!sort2 || !!sort3;
 
   return (
     <div className="bg-white border border-zinc-200 rounded-lg p-4">
@@ -119,29 +153,82 @@ export function JobFilterBar({
           className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm flex-1 min-w-48"
         />
 
-        {/* Sort */}
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
-        >
-          <option value="created_at">Date Added</option>
-          <option value="updated_at">Last Updated</option>
-          <option value="score">Score</option>
-          <option value="salary_max">Salary</option>
-          <option value="status_changed_at">Status Changed</option>
-          <option value="company_name">Company</option>
-        </select>
+        {/* Primary Sort */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-zinc-400">1st</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="border border-zinc-300 rounded-md px-2 py-1.5 text-sm bg-white text-zinc-900"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <select
+            value={order}
+            onChange={(e) => setOrder(e.target.value)}
+            className="border border-zinc-300 rounded-md px-2 py-1.5 text-sm bg-white text-zinc-900 w-16"
+          >
+            <option value="DESC">Desc</option>
+            <option value="ASC">Asc</option>
+          </select>
+        </div>
 
-        {/* Order */}
-        <select
-          value={order}
-          onChange={(e) => setOrder(e.target.value)}
-          className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
-        >
-          <option value="DESC">Desc</option>
-          <option value="ASC">Asc</option>
-        </select>
+        {/* Secondary Sort */}
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-zinc-400">2nd</span>
+          <select
+            value={sort2}
+            onChange={(e) => {
+              setSort2(e.target.value);
+              if (!e.target.value) { setSort3(''); setOrder3('DESC'); }
+            }}
+            className="border border-zinc-300 rounded-md px-2 py-1.5 text-xs bg-white text-zinc-700"
+          >
+            <option value="">None</option>
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          {sort2 && (
+            <select
+              value={order2}
+              onChange={(e) => setOrder2(e.target.value)}
+              className="border border-zinc-300 rounded-md px-2 py-1.5 text-xs bg-white text-zinc-700 w-16"
+            >
+              <option value="DESC">Desc</option>
+              <option value="ASC">Asc</option>
+            </select>
+          )}
+        </div>
+
+        {/* Tertiary Sort */}
+        {sort2 && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-zinc-400">3rd</span>
+            <select
+              value={sort3}
+              onChange={(e) => setSort3(e.target.value)}
+              className="border border-zinc-300 rounded-md px-2 py-1.5 text-xs bg-white text-zinc-700"
+            >
+              <option value="">None</option>
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+            {sort3 && (
+              <select
+                value={order3}
+                onChange={(e) => setOrder3(e.target.value)}
+                className="border border-zinc-300 rounded-md px-2 py-1.5 text-xs bg-white text-zinc-700 w-16"
+              >
+                <option value="DESC">Desc</option>
+                <option value="ASC">Asc</option>
+              </select>
+            )}
+          </div>
+        )}
 
         {/* Apply */}
         <button

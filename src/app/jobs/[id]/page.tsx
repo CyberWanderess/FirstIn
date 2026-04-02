@@ -83,15 +83,19 @@ export default async function JobDetailPage({
       </div>
 
       {/* Info grid */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <InfoCard label="Location" value={job.location.length > 0 ? job.location.join(', ') : 'Not specified'} />
         <InfoCard label="Salary" value={formatSalary(job.salary_min, job.salary_max)} />
         <InfoCard label="Work Mode" value={job.work_mode || 'Not specified'} />
         <InfoCard label="Commitment" value={job.commitment || 'Not specified'} />
         <InfoCard
-          label="Score"
-          value={job.score !== null ? String(job.score) : 'Not scored'}
+          label="Success Rate"
+          value={job.score_success !== null ? String(job.score_success) : 'Not scored'}
           subtitle={job.score_reason || undefined}
+        />
+        <InfoCard
+          label="Attractiveness"
+          value={job.score !== null ? String(job.score) : 'Not scored'}
         />
       </div>
 

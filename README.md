@@ -2,6 +2,8 @@
 
 A self-hosted job search automation platform — track, evaluate, and prioritize job opportunities with AI-assisted analysis.
 
+> **Looking for multi-user support?** Check out the [`user-edition-release`](../../tree/user-edition-release) branch — it adds multi-tenant authentication, per-user database isolation, an admin panel with invite-only registration, and a Chrome extension for saving jobs from LinkedIn.
+
 ## About
 
 FirstIn was built to solve one core problem: **submitting quality applications as early as possible**. Being an early applicant dramatically increases your chances, but manually tracking hundreds of listings across Indeed, LinkedIn, and Glassdoor is unsustainable.

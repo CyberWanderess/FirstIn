@@ -53,6 +53,7 @@ export function listJobs(options: {
   limit?: number;
   offset?: number;
   excludeExpired?: boolean;
+  companyInfoStatus?: string;
 }): { jobs: JobWithCompany[]; total: number } {
   const db = getDb();
   const conditions: string[] = [];
@@ -107,6 +108,11 @@ export function listJobs(options: {
       conditions.push(`NOT EXISTS (SELECT 1 FROM json_each(j.score_tags) WHERE json_each.value = ?)`);
       params.push(tag);
     }
+  }
+
+  if (options.companyInfoStatus) {
+    conditions.push('c.info_status = ?');
+    params.push(options.companyInfoStatus);
   }
 
   // Expiry filter: exclude old jobs in inactive statuses

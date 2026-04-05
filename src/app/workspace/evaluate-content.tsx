@@ -418,6 +418,8 @@ export function JobsTab() {
   const [copied, setCopied] = useState(false);
   const [splitCount, setSplitCount] = useState(1);
   const [copiedBatches, setCopiedBatches] = useState<Set<number>>(new Set());
+  const [includeUnresearched, setIncludeUnresearched] = useState(false);
+  const [hiddenCount, setHiddenCount] = useState(0);
 
   function getChunks(): number[][] {
     const ids = Array.from(selectedIds);
@@ -446,15 +448,34 @@ export function JobsTab() {
   }
 
   useEffect(() => {
-    fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=${batchSize}`)
-      .then((res) => {
-        if (res.success && res.data) {
-          setJobs(res.data);
-          setSelectedIds(new Set(res.data.map((j) => j.id)));
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [batchSize]);
+    setLoading(true);
+    const infoFilter = includeUnresearched ? '' : '&company_info_status=complete';
+    const fetches: Promise<unknown>[] = [
+      fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=${batchSize}${infoFilter}`)
+        .then((res) => {
+          if (res.success && res.data) {
+            setJobs(res.data);
+            setSelectedIds(new Set(res.data.map((j) => j.id)));
+          }
+        }),
+    ];
+    if (!includeUnresearched) {
+      // Fetch total pending_eval count to show how many are hidden
+      fetches.push(
+        Promise.all([
+          fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=1`),
+          fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=1&company_info_status=complete`),
+        ]).then(([allRes, filteredRes]) => {
+          const allTotal = (allRes as { meta?: { total: number } }).meta?.total ?? 0;
+          const filteredTotal = (filteredRes as { meta?: { total: number } }).meta?.total ?? 0;
+          setHiddenCount(allTotal - filteredTotal);
+        })
+      );
+    } else {
+      setHiddenCount(0);
+    }
+    Promise.all(fetches).finally(() => setLoading(false));
+  }, [batchSize, includeUnresearched]);
 
   function toggleSelect(id: number) {
     setSelectedIds((prev) => {
@@ -525,7 +546,8 @@ export function JobsTab() {
       setCopied(false);
       setCopiedBatches(new Set());
       // Refresh the list
-      const listRes = await fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=${batchSize}`);
+      const infoFilter = includeUnresearched ? '' : '&company_info_status=complete';
+      const listRes = await fetchApi<Job[]>(`/api/jobs?status=pending_eval&limit=${batchSize}${infoFilter}`);
       if (listRes.success && listRes.data) {
         setJobs(listRes.data);
         setSelectedIds(new Set(listRes.data.map((j) => j.id)));
@@ -539,11 +561,34 @@ export function JobsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Company research warning */}
+      {hiddenCount > 0 && !includeUnresearched && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+          <div className="text-sm text-amber-800">
+            <span className="font-medium">{hiddenCount} jobs hidden</span> — their companies haven&apos;t been researched yet.{' '}
+            <a href="/workspace?tab=companies" className="text-amber-700 underline hover:text-amber-900">Research Companies →</a>
+          </div>
+          <button
+            onClick={() => setIncludeUnresearched(true)}
+            className="text-xs text-amber-700 border border-amber-300 rounded px-2 py-1 hover:bg-amber-100 whitespace-nowrap"
+          >
+            Show all
+          </button>
+        </div>
+      )}
       {/* Pending jobs */}
       <div className="bg-white border border-zinc-200 rounded-lg">
         <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between flex-wrap gap-3">
           <h2 className="font-semibold text-zinc-900">
             Jobs Pending Evaluation ({loading ? '...' : jobs.length})
+            {includeUnresearched && (
+              <button
+                onClick={() => setIncludeUnresearched(false)}
+                className="ml-2 text-xs font-normal text-amber-600 hover:underline"
+              >
+                Hide unresearched
+              </button>
+            )}
           </h2>
           <div className="flex items-center gap-3">
             <label className="text-sm text-zinc-600">

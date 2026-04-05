@@ -13,9 +13,9 @@ import type { OperationLog } from '@/types';
 import type { ReactNode } from 'react';
 
 const STATUS_GROUPS = [
-  { label: 'Pending Eval', statuses: ['pending_eval'], color: 'bg-yellow-100 text-yellow-800' },
-  { label: 'Flagged', statuses: ['flagged'], color: 'bg-amber-100 text-amber-800' },
-  { label: 'Deep Analysis', statuses: ['pending_deep_analysis'], color: 'bg-purple-100 text-purple-800' },
+  { label: 'Pending Eval', statuses: ['pending_eval'], color: 'bg-yellow-100 text-yellow-800', actionLabel: 'Evaluate →', actionHref: '/workspace?tab=evaluation' },
+  { label: 'Flagged', statuses: ['flagged'], color: 'bg-amber-100 text-amber-800', actionLabel: 'Review →', actionHref: '/jobs?status=flagged' },
+  { label: 'Deep Analysis', statuses: ['pending_deep_analysis'], color: 'bg-purple-100 text-purple-800', actionLabel: 'Analyze →', actionHref: '/workspace?tab=deep-analysis' },
   { label: 'Tailored', statuses: ['ready_to_apply_tailored'], color: 'bg-indigo-100 text-indigo-800' },
   { label: 'Ready to Apply', statuses: ['ready_to_apply'], color: 'bg-green-100 text-green-800' },
   { label: 'Applied', statuses: ['applied'], color: 'bg-cyan-100 text-cyan-800' },
@@ -97,16 +97,24 @@ export default async function DashboardPage() {
           const count = group.statuses.reduce((sum, s) => sum + (statusCounts[s] || 0), 0);
           const statusParam = group.statuses.join(',');
           return (
-            <Link
+            <div
               key={group.label}
-              href={`/jobs?status=${statusParam}`}
-              className="block bg-white border border-zinc-200 rounded-lg p-4 hover:border-zinc-400 transition-colors"
+              className="bg-white border border-zinc-200 rounded-lg p-4 hover:border-zinc-400 transition-colors"
             >
-              <div className="text-2xl font-bold text-zinc-900">{count}</div>
-              <div className={`inline-block text-xs font-medium px-2 py-0.5 rounded mt-1 ${group.color}`}>
-                {group.label}
-              </div>
-            </Link>
+              <Link href={`/jobs?status=${statusParam}`}>
+                <div className="text-2xl font-bold text-zinc-900">{count}</div>
+                <div className={`inline-block text-xs font-medium px-2 py-0.5 rounded mt-1 ${group.color}`}>
+                  {group.label}
+                </div>
+              </Link>
+              {'actionLabel' in group && group.actionLabel && count > 0 && (
+                <div className="mt-2">
+                  <Link href={group.actionHref!} className="text-xs text-blue-600 hover:underline">
+                    {group.actionLabel}
+                  </Link>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

@@ -15,6 +15,7 @@ export const GET = withAuth(async (req) => {
     workMode: url.searchParams.get('work_mode') || undefined,
     commitment: url.searchParams.get('commitment') || undefined,
     jdFetchStatus: url.searchParams.get('jd_fetch_status') || undefined,
+    companyInfoStatus: url.searchParams.get('company_info_status') || undefined,
     q: q || undefined,
     sort,
     order,

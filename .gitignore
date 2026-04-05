@@ -51,3 +51,22 @@ jobhq.db
 jobhq.db-wal
 jobhq.db-shm
 logs/
+
+# Personal scripts and configs (not for public release)
+scripts/pull-data.sh
+scripts/push-data.sh
+scripts/deploy-to-prod.sh
+scripts/deploy.sh
+scripts/import-email-alerts.ts
+scripts/fetch-jsearch.ts
+scripts/fetch-all-sources.ts
+scripts/fetch-ashby.ts
+scripts/fetch-greenhouse.ts
+scripts/fetch-lever.ts
+scripts/crawl.sh
+scripts/crawl-extract.ts
+scripts/refresh-cf-cookies.ts
+scripts/check-coverage.ts
+scripts/research-company-policies.ts
+scripts/test-search.ts
+config/job-sources.json

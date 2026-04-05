@@ -1,4 +1,14 @@
-export default function LoginPage() {
+const ERROR_MESSAGES: Record<string, string> = {
+  missing: 'Please fill in all fields',
+  invalid: 'Invalid email or password',
+  disabled: 'Your account has been disabled',
+  rate_limited: 'Too many attempts. Please wait a minute and try again.',
+};
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; redirect?: string }> }) {
+  const { error, redirect: redirectPath } = await searchParams;
+  const errorMessage = error ? ERROR_MESSAGES[error] : null;
+
   return (
     <div style={{
       position: 'fixed',
@@ -19,7 +29,13 @@ export default function LoginPage() {
           <h1 style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
             FirstIn
           </h1>
+          {errorMessage && (
+            <p style={{ color: '#dc2626', fontSize: 14, textAlign: 'center', marginBottom: 16 }}>
+              {errorMessage}
+            </p>
+          )}
           <form method="POST" action="/api/auth/login-form" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {redirectPath && <input type="hidden" name="redirect" value={redirectPath} />}
             <div>
               <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Email</label>
               <input name="email" type="email" required style={{

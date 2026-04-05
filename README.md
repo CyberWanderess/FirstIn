@@ -1,6 +1,6 @@
-# FirstIn
+# FirstIn — User Edition
 
-A self-hosted job search automation platform — track, evaluate, and prioritize job opportunities with AI-assisted analysis.
+A self-hosted, multi-user job search automation platform — track, evaluate, and prioritize job opportunities with AI-assisted analysis.
 
 ## About
 
@@ -10,34 +10,52 @@ This tool helps you:
 
 - **Aggregate** job listings from multiple platforms into one place
 - **Filter** irrelevant positions automatically (wrong level, low salary, no visa sponsorship)
-- **Evaluate** opportunities with AI to decide which are worth a tailored resume + cover letter, and which to skip entirely
+- **Evaluate** opportunities with AI to decide which are worth a tailored resume + cover letter
 - **Track** your pipeline from discovery to offer
+- **Collaborate** — multi-user support with per-user data isolation
 
 All AI-powered features use a **prompt export/import** approach — you copy a prompt, paste it into any LLM you already subscribe to (ChatGPT, Gemini, Claude, etc.), and import the structured results back. This means **zero additional AI costs**.
 
-> This project was built entirely with [Claude Code](https://claude.ai/claude-code) (Opus 4.6) as an agentic coding experiment — zero hand-written code. Full agent-driven automation has been tested and works, but this self-hosted version prioritizes zero cost over convenience.
+> Built with [Claude Code](https://claude.ai/claude-code) (Opus 4.6).
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
+| **Multi-User Auth** | Per-user accounts with scrypt password hashing, session management, invite-only registration |
+| **Admin Panel** | User management — list users, disable/enable, delete, generate invite codes |
+| **Chrome Extension** | Save jobs from LinkedIn directly to FirstIn with one click or batch save |
+| **Cross-Source Dedup** | Source ID fast path + content hash + trigram JD similarity (>0.7 threshold) |
 | **Dashboard** | Job pipeline overview with status counts and recent activity |
-| **Import** | Parse job listings from email alerts via AI prompt (Gmail integration or manual paste) |
+| **Import** | Parse job listings from email alerts via AI prompt, or paste JSON directly |
 | **Rule Engine** | Configurable filters with exclude/include/flag/protect actions, regex, salary comparisons |
-| **Company Research** | AI-assisted company evaluation — H1B history, size, application limits, interview cooldown periods |
-| **Job Evaluation** | AI-assisted scoring with 4-tier recommendations: proceed (tailored), mass_apply (volume/practice), skip, flag |
+| **Company Research** | AI-assisted company evaluation — H1B history, size, application limits, cooldown periods |
+| **Job Evaluation** | AI-assisted scoring with 4-tier recommendations: proceed, mass_apply, skip, flag |
 | **Deep Analysis** | Detailed JD-resume matching with strengths, concerns, and recommendations |
 | **Visa Tracking** | Company-level H1B filtering + job-level visa sponsorship detection |
 | **Setup Wizard** | First-run configuration for visa preferences, resume, and filter rule templates |
+| **Database Export** | Download a full copy of your SQLite database |
+
+## User Edition Highlights
+
+This edition adds multi-tenant capabilities on top of the core platform:
+
+- **Per-user databases** — each user gets an isolated SQLite database (`data/user-{id}.db`), complete data separation
+- **Invite-only registration** — first user becomes admin, subsequent users need an invite code
+- **Admin dashboard** — manage users, generate invites, view per-user job counts
+- **Chrome Extension auth** — extension connects via per-user API token (Bearer auth)
+- **Security hardening** — rate limiting on auth endpoints, timing-safe login, extension token hashing, CORS enforcement in production
+- **Change password** — in Settings page, invalidates all sessions
 
 ## Recommended Workflow
 
 After deploying and completing the Setup Wizard:
 
-1. **Set up job alerts** on Indeed, LinkedIn, Glassdoor, etc. — have them delivered to your email
-2. **Daily import** — Go to the Import page, copy the prompt template, paste it into your AI with your email content, then import the JSON output
-3. **Evaluate** — On the Evaluate page, export company research and job evaluation prompts, run them through your AI, and import the results
-4. **Apply strategically** — "proceed" jobs get tailored resumes and cover letters (use Deep Analysis for guidance). "mass_apply" jobs get quick volume applications for interview practice. Lower-scoring jobs are skipped
+1. **Install the Chrome Extension** — go to Settings, generate an extension token, download the extension, load it in Chrome
+2. **Browse LinkedIn** — the extension marks jobs as "New" or "Saved", select and batch-save with one click
+3. **Daily import** — alternatively, use the Import page with AI prompt templates for email-based job alerts
+4. **Evaluate** — export company research and job evaluation prompts, run through your AI, import results
+5. **Apply strategically** — "proceed" jobs get tailored resumes. "mass_apply" for volume practice. Lower scores skipped
 
 ## Deployment
 
@@ -51,52 +69,24 @@ After deploying and completing the Setup Wizard:
 ### Quick Start
 
 ```bash
-git clone https://github.com/CyberWanderess/FirstIn.git firstin
+git clone https://github.com/your-username/FirstIn.git firstin
 cd firstin
-bash scripts/deploy.sh
-```
-
-The deploy script will:
-- Check/install Node.js 20+ and build dependencies
-- Run `npm install`
-- Create `.env.local` from `.env.example`
-- Build the production bundle
-
-Then start the server:
-
-```bash
-npm start
-```
-
-Open http://localhost:3000 and complete the Setup Wizard.
-
-### Manual Setup
-
-```bash
-# 1. Install dependencies
 npm install
-
-# 2. Configure environment
 cp .env.example .env.local
-# Edit .env.local if needed (defaults work for most setups)
-
-# 3. Build
 npm run build
-
-# 4. Start
 npm start
 ```
+
+Open http://localhost:3000 and register your account (first user becomes admin).
 
 ### Environment Variables
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_PATH` | Yes | — | Path to SQLite database file (e.g., `./data/jobhq.db`) |
 | `NODE_ENV` | No | `development` | Set to `production` for production builds |
 | `PORT` | No | `3000` | Server port |
-| `ENABLE_CRAWLER` | No | `true` | Enable crawler UI and API routes |
-| `ENABLE_CHINESE_AFFINITY` | No | `true` | Enable Chinese affinity tracking for companies |
-| `NEXT_PUBLIC_ENABLE_CRAWLER` | No | `true` | Client-side crawler feature toggle (must match `ENABLE_CRAWLER`) |
+| `AUTH_DB_PATH` | No | `./data/auth.db` | Path to the shared auth database |
+| `EXTENSION_ALLOWED_ORIGINS` | No | `*` (dev) / blocked (prod) | Comma-separated origins for Chrome extension CORS |
 
 ### Running as a Service
 
@@ -125,7 +115,6 @@ WorkingDirectory=/opt/firstin
 ExecStart=/usr/bin/npm start
 Restart=on-failure
 Environment=NODE_ENV=production
-Environment=DATABASE_PATH=/opt/firstin/data/jobhq.db
 Environment=PORT=3000
 
 [Install]
@@ -150,6 +139,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
     }
 }
 ```
@@ -158,7 +148,8 @@ server {
 
 - **Framework**: Next.js 16 + React 19
 - **Language**: TypeScript 5
-- **Database**: SQLite via better-sqlite3
+- **Database**: SQLite via better-sqlite3 (per-user isolation)
+- **Auth**: scrypt password hashing, session tokens, extension API tokens (SHA-256 hashed)
 - **Styling**: Tailwind CSS 4
 - **Fonts**: Geist Sans + Geist Mono
 
@@ -168,61 +159,72 @@ server {
 src/
   app/
     api/          # REST API routes
+      admin/      # Admin user/invite management
+      auth/       # Login, register, logout, change password
+      extension/  # Chrome extension endpoints (save, check, batch)
       jobs/       # Job CRUD + re-evaluate + visa scan
       companies/  # Company CRUD
       rules/      # Filter rule CRUD + reorder + test
-      settings/   # Settings CRUD
-      setup/      # Setup wizard API
+      settings/   # Settings CRUD + extension token
       import/     # JSON import + evaluation/company/deep-analysis import
       export/     # Evaluation, company, deep-analysis prompt export
+    admin/        # Admin dashboard
     jobs/         # Job list + detail pages
     companies/    # Company list + detail pages
     evaluate/     # Export/import UI for AI evaluation
-    import/       # Import page with prompt template
+    import/       # Import page
     rules/        # Rule management UI
-    settings/     # Settings page
+    settings/     # Settings + extension token + change password
     setup/        # Setup wizard
   lib/
     repositories/ # Database access layer
-    migrations/   # Schema migrations
-    export/       # Prompt exporters
-    import/       # Result parsers
+    migrations/   # Schema migrations (001-015)
+    export/       # Prompt exporters + importers
+    auth-db.ts    # Auth database (users, sessions, invites, extension tokens)
+    admin.ts      # Admin auth helper
+    rate-limit.ts # IP-based rate limiting
+    dedup.ts      # Cross-source job deduplication
     rule-engine.ts
-    db.ts
-    init.ts
+    db.ts         # Per-user database isolation via AsyncLocalStorage
   types/          # TypeScript type definitions
+extension/        # Chrome MV3 extension (LinkedIn integration)
 data/
-  jobhq.db       # SQLite database (created at runtime)
+  auth.db         # Shared auth database (created at runtime)
+  user-{id}.db    # Per-user databases (created at runtime)
 ```
 
 ## Changelog
 
+### User Edition (2026-04-03)
+
+- **Multi-user authentication** — per-user accounts with scrypt hashing, 30-day sessions
+- **Per-user database isolation** — each user gets separate SQLite database
+- **Admin panel** — user management, invite code generation, per-user stats
+- **Invite-only registration** — closed registration, admin generates invite links
+- **Chrome Extension** — save jobs from LinkedIn (single + batch), status badges on search results
+- **Cross-source dedup** — source ID + content hash + JD trigram similarity
+- **Security hardening** — rate limiting, timing-safe login, token hashing, CORS enforcement
+- **Change password** — with automatic session invalidation
+- **Disabled user support** — admin can disable accounts (immediate session revocation)
+
 ### v0.3.0 — Job List Overhaul & Testing (2026-03-03)
 
-- **Multi-select filters** — filter jobs by status, score, and tags simultaneously
-- **Score tags** — visual tags (e.g. `proceed`, `mass_apply`, `skip`) on job cards
-- **Manual archive** — archive/unarchive jobs directly from the list with reason tracking
-- **Unit tests** — added Vitest framework with 119 tests covering rule engine, exporters, and importers
-- **PII protection** — release pipeline now auto-scans for personal data and uses anonymous git author
-- **English-only UI** — all user-facing text standardized to English for release
+- Multi-select filters, score tags, manual archive
+- Vitest framework with 119 unit tests
+- PII protection in release pipeline
+- English-only UI
 
 ### v0.2.0 — Evaluation & Company Research (2026-02-28)
 
-- **Project rename** — JobHQ → FirstIn
-- **Company cooldown** — configurable interview cooldown periods per company
-- **Mass apply tier** — 4-tier scoring: proceed, mass_apply, skip, flag
-- **Deep analysis** — detailed JD-resume matching with strengths/concerns
-- **Visa tracking** — company-level H1B filtering + job-level visa sponsorship
-- **Feature flags** — `ENABLE_CRAWLER` / `ENABLE_CHINESE_AFFINITY` for release configuration
+- Project rename JobHQ → FirstIn
+- Company cooldown, mass apply tier, deep analysis
+- Visa tracking, feature flags
 
 ### v0.1.0 — Initial Release
 
 - Dashboard, job list, company management
-- Rule engine with exclude/include/flag/protect actions
-- AI prompt export/import workflow (zero API cost)
-- Setup wizard for first-run configuration
-- SQLite database with migration system
-- Deploy script + pm2/systemd support
+- Rule engine, AI prompt export/import workflow
+- Setup wizard, SQLite migrations, deploy script
 
 ## Credits
 

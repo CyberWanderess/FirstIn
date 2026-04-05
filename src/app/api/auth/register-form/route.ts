@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { existsSync, copyFileSync, mkdirSync } from 'fs';
-import { dirname, resolve } from 'path';
-import { createUser, createSession, findUserByEmail, getUserCount } from '@/lib/auth-db';
+import { createUser, createSession, findUserByEmail, getUserCount, validateInviteCode, markInviteUsed, getAuthDb } from '@/lib/auth-db';
+import { isRateLimited } from '@/lib/rate-limit';
 
 function redirectTo(path: string, req: NextRequest): NextResponse {
   const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || 'localhost';
@@ -10,33 +9,60 @@ function redirectTo(path: string, req: NextRequest): NextResponse {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || 'unknown';
+
+  if (isRateLimited(ip)) {
+    return redirectTo('/register?error=rate_limited', req);
+  }
+
   const formData = await req.formData();
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
   const displayName = formData.get('display_name') as string;
+  const inviteCode = formData.get('invite') as string | null;
 
   if (!email || !password) {
     return redirectTo('/register?error=missing', req);
   }
-  if (password.length < 6) {
+  if (password.length < 8) {
     return redirectTo('/register?error=short_password', req);
   }
 
-  const existing = findUserByEmail(email);
-  if (existing) {
-    return redirectTo('/register?error=exists', req);
+  const userCount = getUserCount();
+  const needsInvite = userCount > 0;
+
+  // Validate invite code if required
+  if (needsInvite) {
+    if (!inviteCode) {
+      return redirectTo('/register?error=invite_required', req);
+    }
+    const invite = validateInviteCode(inviteCode);
+    if (!invite) {
+      return redirectTo('/register?error=invalid_invite', req);
+    }
   }
 
   try {
-    const user = createUser(email, password, displayName || undefined);
-
-    // First user: migrate legacy jobhq.db if it exists
-    const userCount = getUserCount();
-    if (userCount === 1) {
-      migrateLegacyDb(user.id);
+    const existing = findUserByEmail(email);
+    if (existing) {
+      return redirectTo('/register?error=failed', req);
     }
 
-    const token = createSession(user.id);
+    // Use transaction to atomically create user + consume invite
+    const db = getAuthDb();
+    let userId: number;
+
+    db.transaction(() => {
+      const user = createUser(email, password, displayName || undefined);
+      userId = user.id;
+      if (inviteCode && needsInvite) {
+        markInviteUsed(inviteCode, user.id);
+      }
+    })();
+
+    const token = createSession(userId!);
 
     const response = redirectTo('/', req);
     response.cookies.set('session_token', token, {
@@ -50,20 +76,4 @@ export async function POST(req: NextRequest) {
   } catch {
     return redirectTo('/register?error=failed', req);
   }
-}
-
-function migrateLegacyDb(userId: number) {
-  const legacyPath = resolve(process.env.DATABASE_PATH || './data/jobhq.db');
-  if (!existsSync(legacyPath)) return;
-
-  const userDbPath = resolve(`./data/user-${userId}.db`);
-  if (existsSync(userDbPath)) return;
-
-  mkdirSync(dirname(userDbPath), { recursive: true });
-  copyFileSync(legacyPath, userDbPath);
-
-  const walPath = legacyPath + '-wal';
-  const shmPath = legacyPath + '-shm';
-  if (existsSync(walPath)) copyFileSync(walPath, userDbPath + '-wal');
-  if (existsSync(shmPath)) copyFileSync(shmPath, userDbPath + '-shm');
 }

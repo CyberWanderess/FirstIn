@@ -23,11 +23,9 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/jobs", label: "Jobs" },
   { href: "/companies", label: "Companies" },
-  { href: "/evaluate", label: "Evaluate" },
-  { href: "/import", label: "Import" },
-  { href: "/dedup", label: "Dedup" },
-  { href: "/rules", label: "Rules" },
+  { href: "/workspace", label: "Workspace" },
   { href: "/settings", label: "Settings" },
+  { href: "/admin", label: "Admin" },
 ];
 
 export default function RootLayout({

@@ -3,9 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 function getCorsHeaders(req?: NextRequest): Record<string, string> {
   const origin = req?.headers.get('origin') || '*';
   const allowed = process.env.EXTENSION_ALLOWED_ORIGINS;
-  const allowOrigin = allowed
-    ? (allowed.split(',').includes(origin) ? origin : 'null')
-    : '*';
+  let allowOrigin: string;
+  if (allowed) {
+    allowOrigin = allowed.split(',').includes(origin) ? origin : 'null';
+  } else if (process.env.NODE_ENV === 'production') {
+    // In production, require explicit EXTENSION_ALLOWED_ORIGINS
+    allowOrigin = 'null';
+  } else {
+    allowOrigin = '*';
+  }
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,

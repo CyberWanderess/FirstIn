@@ -31,7 +31,7 @@ const SETTING_SECTIONS: { label: string; keys: string[]; id: string; crawlerOnly
 ];
 
 const CATEGORIZED_KEYS = new Set(SETTING_SECTIONS.flatMap((s) => s.keys));
-const HIDDEN_KEYS = new Set(['resume_text', 'setup_completed', 'extension_api_token']);
+const HIDDEN_KEYS = new Set(['resume_text', 'setup_completed', 'extension_api_token', 'jsearch_enabled', 'jsearch_api_key']);
 
 export function SettingsClient({ initialSettings, enableCrawler = true }: { initialSettings: Setting[]; enableCrawler?: boolean }) {
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
@@ -78,11 +78,53 @@ export function SettingsClient({ initialSettings, enableCrawler = true }: { init
     }
   }
 
+  // Change password state
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwChanging, setPwChanging] = useState(false);
+  const [pwResult, setPwResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  async function handleChangePassword() {
+    setPwChanging(true);
+    setPwResult(null);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPwResult({ ok: false, msg: data.error || 'Failed' });
+      } else {
+        setPwResult({ ok: true, msg: data.message || 'Password changed' });
+        setCurrentPw('');
+        setNewPw('');
+        // Redirect to login after short delay since sessions are invalidated
+        setTimeout(() => { window.location.href = '/login'; }, 2000);
+      }
+    } catch (e) {
+      setPwResult({ ok: false, msg: (e as Error).message });
+    } finally {
+      setPwChanging(false);
+    }
+  }
+
   // Resume text state
   const resumeSetting = settings.find((s) => s.key === 'resume_text');
   const [resumeText, setResumeText] = useState(resumeSetting?.value || '');
   const [resumeSaving, setResumeSaving] = useState(false);
   const [resumeSaved, setResumeSaved] = useState(false);
+
+  // JSearch state
+  const jsearchEnabledSetting = settings.find((s) => s.key === 'jsearch_enabled');
+  const [jsearchEnabled, setJsearchEnabled] = useState(jsearchEnabledSetting?.value === 'true');
+  const [jsearchToggling, setJsearchToggling] = useState(false);
+  const jsearchKeySetting = settings.find((s) => s.key === 'jsearch_api_key');
+  const [jsearchApiKey, setJsearchApiKey] = useState(jsearchKeySetting?.value || '');
+  const [jsearchKeySaving, setJsearchKeySaving] = useState(false);
+  const [jsearchKeySaved, setJsearchKeySaved] = useState(false);
+  const [jsearchKeyVisible, setJsearchKeyVisible] = useState(false);
 
   // Uncategorized settings (not in any section and not hidden)
   const uncategorizedSettings = settings.filter(
@@ -152,6 +194,45 @@ export function SettingsClient({ initialSettings, enableCrawler = true }: { init
       setError((e as Error).message);
     } finally {
       setResumeSaving(false);
+    }
+  }
+
+  async function handleJsearchToggle() {
+    setJsearchToggling(true);
+    setError(null);
+    const newValue = !jsearchEnabled;
+    try {
+      const res = await fetchApi<Setting>('/api/settings/jsearch_enabled', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: String(newValue), description: 'Enable JSearch (Google Jobs) data source' }),
+      });
+      if (!res.success) throw new Error(res.error || 'Failed to save');
+      setJsearchEnabled(newValue);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setJsearchToggling(false);
+    }
+  }
+
+  async function handleJsearchKeySave() {
+    setJsearchKeySaving(true);
+    setError(null);
+    setJsearchKeySaved(false);
+    try {
+      const res = await fetchApi<Setting>('/api/settings/jsearch_api_key', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: jsearchApiKey, description: 'RapidAPI key for JSearch' }),
+      });
+      if (!res.success) throw new Error(res.error || 'Failed to save');
+      setJsearchKeySaved(true);
+      setTimeout(() => setJsearchKeySaved(false), 2000);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setJsearchKeySaving(false);
     }
   }
 
@@ -327,6 +408,104 @@ export function SettingsClient({ initialSettings, enableCrawler = true }: { init
             Download Database
           </a>
         </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-3">
+        <div>
+          <h2 className="font-semibold text-zinc-900">Change Password</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">All sessions will be invalidated after changing password</p>
+        </div>
+        {pwResult && (
+          <p className={`text-sm ${pwResult.ok ? 'text-green-700' : 'text-red-700'}`}>
+            {pwResult.msg}
+          </p>
+        )}
+        <div className="flex gap-3 items-end">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-zinc-600 mb-1">Current Password</label>
+            <input
+              type="password"
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+              className="w-full border border-zinc-300 rounded px-3 py-1.5 text-sm"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-zinc-600 mb-1">New Password (min 8)</label>
+            <input
+              type="password"
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              minLength={8}
+              className="w-full border border-zinc-300 rounded px-3 py-1.5 text-sm"
+            />
+          </div>
+          <button
+            onClick={handleChangePassword}
+            disabled={pwChanging || !currentPw || newPw.length < 8}
+            className="px-4 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            {pwChanging ? 'Changing...' : 'Change'}
+          </button>
+        </div>
+      </div>
+
+      {/* JSearch (Google Jobs) */}
+      <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-zinc-900">JSearch (Google Jobs)</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Fetch jobs from Google Jobs via{' '}
+              <a href="https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                RapidAPI
+              </a>
+              {' '}— free tier: 500 req/month
+            </p>
+          </div>
+          <button
+            onClick={handleJsearchToggle}
+            disabled={jsearchToggling}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${jsearchEnabled ? 'bg-green-500' : 'bg-zinc-300'} ${jsearchToggling ? 'opacity-50' : ''}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${jsearchEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        {jsearchEnabled && (
+          <div className="space-y-2 pt-2 border-t border-zinc-100">
+            <label className="text-xs font-medium text-zinc-600">RapidAPI Key</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <input
+                  type={jsearchKeyVisible ? 'text' : 'password'}
+                  value={jsearchApiKey}
+                  onChange={(e) => setJsearchApiKey(e.target.value)}
+                  className="w-full border border-zinc-300 rounded px-3 py-1.5 text-sm font-mono pr-16"
+                  placeholder="Enter your RapidAPI key..."
+                />
+                <button
+                  type="button"
+                  onClick={() => setJsearchKeyVisible(!jsearchKeyVisible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-zinc-500 hover:text-zinc-700"
+                >
+                  {jsearchKeyVisible ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <button
+                onClick={handleJsearchKeySave}
+                disabled={jsearchKeySaving}
+                className="px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-md hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              >
+                {jsearchKeySaving ? 'Saving...' : 'Save'}
+              </button>
+              {jsearchKeySaved && <span className="self-center text-xs text-green-600">Saved</span>}
+            </div>
+            <p className="text-xs text-zinc-400">
+              Used by <code className="bg-zinc-100 px-1 rounded">scripts/fetch-jsearch.ts</code> when <code className="bg-zinc-100 px-1 rounded">RAPIDAPI_KEY</code> env var is not set
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Resume */}

@@ -14,6 +14,8 @@
 import './lib/load-env'; // must be first — sets RAPIDAPI_KEY etc. before env checks
 import { execFileSync } from 'child_process';
 import { join } from 'path';
+import { getDb } from '../src/lib/db';
+import { runMigrations } from '../src/lib/migrations/runner';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -53,9 +55,30 @@ for (const source of activeSources) {
     continue;
   }
 
-  if (source === 'jsearch' && !process.env.RAPIDAPI_KEY) {
-    console.warn('[fetch-all] Skipping jsearch: RAPIDAPI_KEY not set');
-    continue;
+  if (source === 'jsearch') {
+    // Check DB setting for jsearch enabled
+    try {
+      const db = getDb();
+      runMigrations(db);
+      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('jsearch_enabled') as { value: string } | undefined;
+      if (row?.value !== 'true') {
+        console.warn('[fetch-all] Skipping jsearch: disabled in settings');
+        continue;
+      }
+    } catch {
+      // DB not available — fall through to script which will handle it
+    }
+    const hasKey = process.env.RAPIDAPI_KEY || (() => {
+      try {
+        const db = getDb();
+        const row = db.prepare('SELECT value FROM settings WHERE key = ?').get('jsearch_api_key') as { value: string } | undefined;
+        return row?.value || '';
+      } catch { return ''; }
+    })();
+    if (!hasKey) {
+      console.warn('[fetch-all] Skipping jsearch: no API key configured');
+      continue;
+    }
   }
 
   console.log(`\n[fetch-all] === ${source.toUpperCase()} ===`);

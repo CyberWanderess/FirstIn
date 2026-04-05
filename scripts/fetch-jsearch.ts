@@ -25,9 +25,21 @@ import { processJobs, printResult, type JobCandidate } from './lib/process-jobs'
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
+const forceRun = args.includes('--force');
 const queryArg = args.includes('--query') ? args[args.indexOf('--query') + 1] : null;
 
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
+function getDbSetting(key: string, defaultValue: string): string {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined;
+    return row?.value ?? defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
+// Env var takes priority, then DB setting
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || getDbSetting('jsearch_api_key', '');
 
 interface JSearchConfig {
   queries: string[];
@@ -140,8 +152,17 @@ async function fetchJSearchQuery(
 }
 
 async function main() {
+  // Check if jsearch is enabled (skip check with --force)
+  if (!forceRun) {
+    const enabled = getDbSetting('jsearch_enabled', 'false');
+    if (enabled !== 'true') {
+      console.log('[jsearch] Disabled in settings. Use --force to override, or enable in Settings > JSearch.');
+      return;
+    }
+  }
+
   if (!RAPIDAPI_KEY) {
-    console.error('[jsearch] Error: RAPIDAPI_KEY env var is not set');
+    console.error('[jsearch] Error: No API key found. Set RAPIDAPI_KEY env var or configure in Settings > JSearch.');
     console.error('  Get a key at: https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch');
     process.exit(1);
   }

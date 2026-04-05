@@ -1,10 +1,21 @@
 import type { JobWithCompany } from '@/types';
 import { cleanJdText } from '@/lib/jd-cleaner';
+import {
+  DEFAULT_SCORING_GUIDANCE,
+  DEFAULT_CALIBRATION_EXAMPLES,
+  DEFAULT_SCORE_TAGS,
+} from './evaluation-defaults';
+
+export interface EvalPromptConfig {
+  scoringGuidance?: string;
+  calibrationExamples?: string;
+  scoreTags?: string;
+}
 
 /**
  * Export jobs for evaluation, including company context.
  */
-export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdown' | 'json'): string {
+export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdown' | 'json', config?: EvalPromptConfig): string {
   if (format === 'json') {
     return JSON.stringify(jobs.map((j) => ({
       id: j.id,
@@ -41,14 +52,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '- YoE match: JD years requirement vs actual experience',
     '- H1B/visa friendliness: company sponsor history, JD mentions',
     '',
-    '**score_success calibration — avoid systematic underscoring:**',
-    '- TPM/PM is a transferable skill. Domain gap alone should NOT drop score_success below 4. Domain can be learned; cross-functional orchestration ability cannot.',
-    '- If JD emphasizes cross-functional coordination, stakeholder management, delivery under ambiguity → candidate\'s CORE strengths, add +1-2 to score_success.',
-    '- H1B: only penalize if JD explicitly says no sponsorship. If unknown (most cases), treat as neutral.',
-    '- score_success 8-9: Direct skill + domain + level match',
-    '- score_success 6-7: Good skill match, minor gap (domain or level)',
-    '- score_success 4-5: Transferable skills, notable gap but realistic shot',
-    '- score_success 1-3: Hard blockers (no visa, citizenship, physical construction) or fundamental mismatch',
+    ...(config?.scoringGuidance || DEFAULT_SCORING_GUIDANCE).split('\n'),
     '',
     '## Recommendations (auto-derived from score_success)',
     'Recommendation is automatically determined by score_success. You may still provide it but it will be overridden:',
@@ -65,20 +69,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '## Score Tags',
     'Classify each job with 1-3 tags from the following taxonomy. Pick the most relevant.',
     '',
-    'Negative (indicate weaknesses):',
-    '- **downpay**: Salary significantly below market/expectations',
-    '- **down_level**: Role TITLE/LEVEL is clearly below candidate (e.g., Associate, Junior, Coordinator, L4/TPM II). Do NOT use for domain mismatch — use domain_gap instead.',
-    '- **skill_gap**: Missing key required technical skills',
-    '- **domain_gap**: No experience in the required industry/domain',
-    '- **exp_gap**: Significantly under the years-of-experience requirement',
-    '',
-    'Positive (indicate strengths):',
-    '- **strong_match**: Excellent alignment across skills, experience, and domain',
-    '- **rare_opportunity**: Unusual/niche role worth pursuing even if not perfect match',
-    '',
-    'Risk (indicate caution):',
-    '- **cooldown_risk**: Company has significant cooldown period; failure would block future applications',
-    '- **overqualified**: Candidate clearly exceeds requirements',
+    ...(config?.scoreTags || DEFAULT_SCORE_TAGS).split('\n'),
     '',
     '## Years of Experience Guidance',
     '- YoE requirements are flexible guidelines, not hard cutoffs.',
@@ -90,14 +81,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '  - If cooldown_months > 6: only recommend proceed if the match is genuinely strong.',
     '- Small companies and rare/niche positions: be more lenient, as these opportunities are harder to come by.',
     '',
-    '## Calibration (score / score_success)',
-    '- NVIDIA TPM AI Portfolio = 9/8 (direct AI/ML match)',
-    '- OpenAI Security/Compliance TPM = 9/7 (compliance depth + frontier AI company)',
-    '- Netflix TPM5 Cross-functional = 9/7 (top comp, cross-functional TPM)',
-    '- Google AI PM = 8/6 (good brand but broad role, moderate domain gap)',
-    '- HP Ads Monetization = 7/7 (candidate built the same pipeline at OPPO)',
-    '- Crusoe Cloud Product TPM = 6/5 (good company, different TPM specialty)',
-    '- NVIDIA Principal Infra = 3/1 (physical DC builds, hard blocker)',
+    ...(config?.calibrationExamples || DEFAULT_CALIBRATION_EXAMPLES).split('\n'),
     '',
     '---',
     '',

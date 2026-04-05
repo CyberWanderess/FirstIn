@@ -41,6 +41,10 @@ function makeJob(overrides: Partial<JobWithCompany> = {}): JobWithCompany {
     application_limit: 3,
     cooldown_months: 6,
     chinese_affinity: null,
+    limit_period_months: null,
+    funding_round: null,
+    salary_currency: 'USD',
+    posted_at: null,
     ...overrides,
   };
 }

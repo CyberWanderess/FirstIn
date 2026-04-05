@@ -14,6 +14,7 @@ import { migration012 } from './012_funding_round';
 import { migration013 } from './013_salary_currency';
 import { migration014 } from './014_job_source_ids';
 import { migration015 } from './015_posted_at';
+import { migration016 } from './016_rename_rejected';
 
 interface Migration {
   id: number;
@@ -37,6 +38,7 @@ const migrations: Migration[] = [
   { id: 13, name: '013_salary_currency', up: migration013 },
   { id: 14, name: '014_job_source_ids', up: migration014 },
   { id: 15, name: '015_posted_at', up: migration015 },
+  { id: 16, name: '016_rename_rejected', up: migration016 },
 ];
 
 export function runMigrations(db: Database.Database): void {

@@ -21,7 +21,7 @@ const STATUS_GROUPS = [
   { label: 'Applied', statuses: ['applied'], color: 'bg-cyan-100 text-cyan-800' },
   { label: 'Interviewing', statuses: ['interviewing'], color: 'bg-orange-100 text-orange-800' },
   { label: 'Offer', statuses: ['offer'], color: 'bg-emerald-100 text-emerald-800' },
-  { label: 'Rejected', statuses: ['rejected'], color: 'bg-red-100 text-red-800' },
+  { label: 'Rejected (Resume)', statuses: ['rejected_resume'], color: 'bg-red-100 text-red-800' },
   { label: 'Archived', statuses: ['archived_filtered', 'archived_low_match', 'archived_no_response'], color: 'bg-zinc-100 text-zinc-600' },
 ] as const;
 
@@ -171,11 +171,10 @@ const REJECTION_LABELS: Record<string, string> = {
   hm_interview: 'HM Interview',
   final_round: 'Final Round',
   other: 'Other',
-  // Legacy Chinese values
-  '简历拒': 'Resume',
-  'OA拒': 'OA',
-  '面试拒': 'Interview',
-  '其他': 'Other',
+  // Legacy aliases
+  'resume_reject': 'Resume',
+  'oa_reject': 'OA',
+  'interview_reject': 'Interview',
 };
 
 function rejectionLabel(reason: string): string {

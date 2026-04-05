@@ -3,7 +3,8 @@ import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { config } from '@/lib/config';
 import { listSettings } from '@/lib/repositories/settings-repository';
-import { SettingsClient } from './settings-client';
+import { listRules } from '@/lib/repositories/rule-repository';
+import { SettingsPageTabs } from './settings-tabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,14 @@ export default async function SettingsPage() {
   return runWithUser(user.id, () => {
     ensureInitialized();
     const settings = listSettings();
+    const rules = listRules();
 
-    return <SettingsClient initialSettings={settings} enableCrawler={config.enableCrawler} />;
+    return (
+      <SettingsPageTabs
+        initialSettings={settings}
+        initialRules={rules}
+        enableCrawler={config.enableCrawler}
+      />
+    );
   });
 }

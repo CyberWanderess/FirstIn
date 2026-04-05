@@ -7,7 +7,7 @@ export type JobStatus =
   | 'applied'
   | 'interviewing'
   | 'offer'
-  | 'rejected'
+  | 'rejected_resume'
   | 'archived_filtered'
   | 'archived_low_match'
   | 'archived_no_response'
@@ -15,7 +15,7 @@ export type JobStatus =
 
 export const JOB_STATUSES: readonly JobStatus[] = [
   'pending_eval', 'flagged', 'pending_deep_analysis', 'ready_to_apply_tailored',
-  'ready_to_apply', 'applied', 'interviewing', 'offer', 'rejected',
+  'ready_to_apply', 'applied', 'interviewing', 'offer', 'rejected_resume',
   'archived_filtered', 'archived_low_match', 'archived_no_response', 'archived_manual',
 ] as const;
 
@@ -28,7 +28,7 @@ export const STATUS_LABELS: Record<string, string> = {
   applied: 'Applied',
   interviewing: 'Interviewing',
   offer: 'Offer',
-  rejected: 'Rejected',
+  rejected_resume: 'Rejected (Resume)',
   archived_filtered: 'Archived (Filtered)',
   archived_low_match: 'Archived (Low Match)',
   archived_no_response: 'Archived (No Response)',
@@ -36,12 +36,14 @@ export const STATUS_LABELS: Record<string, string> = {
 };
 
 export type ScoreTag =
-  | 'downpay' | 'down_level' | 'skill_gap' | 'domain_gap' | 'exp_gap'
+  | 'downpay' | 'down_level' | 'skill_gap' | 'exp_gap'
+  | 'domain_gap:minor' | 'domain_gap:major' | 'domain_gap:blocker'
   | 'strong_match' | 'rare_opportunity'
   | 'cooldown_risk' | 'overqualified';
 
 export const SCORE_TAGS: readonly ScoreTag[] = [
-  'downpay', 'down_level', 'skill_gap', 'domain_gap', 'exp_gap',
+  'downpay', 'down_level', 'skill_gap', 'exp_gap',
+  'domain_gap:minor', 'domain_gap:major', 'domain_gap:blocker',
   'strong_match', 'rare_opportunity',
   'cooldown_risk', 'overqualified',
 ] as const;

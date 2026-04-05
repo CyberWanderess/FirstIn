@@ -3,7 +3,12 @@ const TAG_CONFIG: Record<string, { label: string; color: string }> = {
   downpay: { label: 'Downpay', color: 'bg-red-100 text-red-700' },
   down_level: { label: 'Down Level', color: 'bg-red-100 text-red-700' },
   skill_gap: { label: 'Skill Gap', color: 'bg-red-100 text-red-700' },
-  domain_gap: { label: 'Domain Gap', color: 'bg-red-100 text-red-700' },
+  // Domain gap (legacy)
+  domain_gap: { label: 'Domain Gap', color: 'bg-zinc-100 text-zinc-600' },
+  // Domain gap severity levels
+  'domain_gap:minor': { label: 'Gap: Minor', color: 'bg-yellow-100 text-yellow-700' },
+  'domain_gap:major': { label: 'Gap: Major', color: 'bg-orange-100 text-orange-700' },
+  'domain_gap:blocker': { label: 'Gap: Blocker', color: 'bg-red-100 text-red-700' },
   exp_gap: { label: 'Exp Gap', color: 'bg-red-100 text-red-700' },
   // Positive (green)
   strong_match: { label: 'Strong Match', color: 'bg-green-100 text-green-700' },

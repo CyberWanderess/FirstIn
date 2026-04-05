@@ -17,11 +17,11 @@ describe('validateTransition', () => {
     ['ready_to_apply', 'applied'],
     ['ready_to_apply', 'archived_manual'],
     ['applied', 'interviewing'],
-    ['applied', 'rejected'],
+    ['applied', 'rejected_resume'],
     ['applied', 'archived_no_response'],
     ['applied', 'archived_manual'],
     ['interviewing', 'offer'],
-    ['interviewing', 'rejected'],
+    ['interviewing', 'rejected_resume'],
     ['archived_filtered', 'pending_eval'],
     ['archived_low_match', 'pending_eval'],
     ['archived_manual', 'pending_eval'],
@@ -46,7 +46,7 @@ describe('validateTransition', () => {
   });
 
   it('terminal states have no outgoing transitions', () => {
-    for (const status of ['offer', 'rejected', 'archived_no_response']) {
+    for (const status of ['offer', 'rejected_resume', 'archived_no_response']) {
       const result = validateTransition(status as any, 'pending_eval' as any);
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('none');
@@ -69,7 +69,7 @@ describe('getAllowedTransitions', () => {
 
   it('returns empty for terminal states', () => {
     expect(getAllowedTransitions('offer')).toEqual([]);
-    expect(getAllowedTransitions('rejected')).toEqual([]);
+    expect(getAllowedTransitions('rejected_resume')).toEqual([]);
     expect(getAllowedTransitions('archived_no_response')).toEqual([]);
   });
 

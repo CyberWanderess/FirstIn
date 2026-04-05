@@ -42,6 +42,8 @@ export function listJobs(options: {
   commitment?: string;
   jdFetchStatus?: string;
   q?: string;
+  tags?: string;
+  excludeTags?: string;
   sort?: string;
   order?: string;
   sort2?: string;
@@ -88,6 +90,25 @@ export function listJobs(options: {
     params.push(like, like);
   }
 
+  // Tag include filter (OR: show jobs with ANY of these tags)
+  if (options.tags) {
+    const tagList = options.tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (tagList.length > 0) {
+      const tagConditions = tagList.map(() => `EXISTS (SELECT 1 FROM json_each(j.score_tags) WHERE json_each.value = ?)`);
+      conditions.push(`(${tagConditions.join(' OR ')})`);
+      params.push(...tagList);
+    }
+  }
+
+  // Tag exclude filter (AND: hide jobs with ANY of these tags)
+  if (options.excludeTags) {
+    const tagList = options.excludeTags.split(',').map(t => t.trim()).filter(Boolean);
+    for (const tag of tagList) {
+      conditions.push(`NOT EXISTS (SELECT 1 FROM json_each(j.score_tags) WHERE json_each.value = ?)`);
+      params.push(tag);
+    }
+  }
+
   // Expiry filter: exclude old jobs in inactive statuses
   if (options.excludeExpired !== false) {
     const expiryDays = getSettingNumber('expiry_days', 30);
@@ -128,7 +149,7 @@ export function listJobs(options: {
     WITH company_counts AS (
       SELECT company_id,
              COUNT(*) as company_total_jobs,
-             COUNT(*) FILTER (WHERE status NOT LIKE 'archived%' AND status != 'rejected') as company_active_jobs
+             COUNT(*) FILTER (WHERE status NOT LIKE 'archived%' AND status != 'rejected_resume') as company_active_jobs
       FROM jobs
       GROUP BY company_id
     )

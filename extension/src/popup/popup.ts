@@ -23,7 +23,27 @@ async function load() {
 
   if (!isConfigured(config)) {
     connEl.innerHTML = '<span class="dot dot-red"></span>';
-    contentEl.innerHTML = '<div class="error">Not configured.<br>Click Settings to set up.</div>';
+    const savedUrl = config.serverUrl || '';
+    contentEl.innerHTML = `
+      <div class="login-form">
+        <label for="loginUrl">Server URL</label>
+        <input type="url" id="loginUrl" placeholder="http://140.82.50.93" value="${escapeHtml(savedUrl)}">
+        <button class="login-btn" id="loginBtn">Login with Browser</button>
+      </div>
+      <div style="padding: 0 16px 12px; text-align: center;">
+        <a href="#" id="manualSetup" style="font-size: 11px; color: #6b7280;">Manual token setup</a>
+      </div>
+    `;
+    document.getElementById('loginBtn')!.addEventListener('click', () => {
+      const url = (document.getElementById('loginUrl') as HTMLInputElement).value.trim().replace(/\/$/, '');
+      if (!url) return;
+      const extId = chrome.runtime.id;
+      chrome.tabs.create({ url: `${url}/login/extension?ext=${extId}` });
+    });
+    document.getElementById('manualSetup')!.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
     return;
   }
 

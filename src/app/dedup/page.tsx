@@ -1,7 +1,5 @@
-import { DedupClient } from './dedup-client';
-
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
 export default function DedupPage() {
-  return <DedupClient />;
+  redirect('/jobs');
 }

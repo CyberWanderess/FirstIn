@@ -72,7 +72,7 @@ export function applyRejectionResults(
       }
 
       // Already rejected — skip
-      if (job.status === 'rejected') {
+      if (job.status === 'rejected_resume') {
         skipped++;
         continue;
       }
@@ -82,7 +82,7 @@ export function applyRejectionResults(
       const newNotes = job.notes ? `${job.notes}\n${rejectionNote}` : rejectionNote;
 
       updateJob(item.job_id, {
-        status: 'rejected',
+        status: 'rejected_resume',
         notes: newNotes,
       });
 
@@ -93,7 +93,7 @@ export function applyRejectionResults(
         trigger: 'import',
         details: {
           from: job.status,
-          to: 'rejected',
+          to: 'rejected_resume',
           reason: item.rejection_reason,
           source: 'rejection_email_scan',
         },
@@ -129,7 +129,7 @@ export function createRejectedJobs(
           title: item.title,
           location: [],
           source: 'rejection_email',
-          status: 'rejected',
+          status: 'rejected_resume',
           notes: rejectionNote,
         });
 

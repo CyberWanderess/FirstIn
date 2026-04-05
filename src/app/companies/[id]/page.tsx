@@ -7,7 +7,10 @@ import { findCompanyById } from '@/lib/repositories/company-repository';
 import { listJobs } from '@/lib/repositories/job-repository';
 import { getEntityHistory } from '@/lib/repositories/operation-log-repository';
 import { StatusBadge } from '@/components/status-badge';
+import { StatusActions } from '@/components/status-actions';
 import { CompanyStrategyEditor } from './strategy-editor';
+import { TrimExcess } from './trim-excess';
+import type { JobStatus } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,10 +136,24 @@ export default async function CompanyDetailPage({
 
       {/* Jobs table */}
       <div className="bg-white border border-zinc-200 rounded-lg">
-        <div className="px-6 py-3 border-b border-zinc-200">
+        <div className="px-6 py-3 border-b border-zinc-200 flex items-center justify-between">
           <h2 className="font-semibold text-zinc-900">
             Jobs ({jobs.length})
           </h2>
+          {company.application_limit != null && company.application_limit > 0 && (
+            <TrimExcess
+              companyId={company.id}
+              applicationLimit={company.application_limit}
+              limitPeriodMonths={company.limit_period_months}
+              jobs={jobs.map(j => ({
+                id: j.id,
+                title: j.title,
+                status: j.status,
+                score_success: j.score_success ?? null,
+                score: j.score,
+              }))}
+            />
+          )}
         </div>
         {jobs.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-zinc-400">
@@ -166,6 +183,7 @@ export default async function CompanyDetailPage({
                   </td>
                   <td className="px-4 py-2.5">
                     <StatusBadge status={job.status} />
+                    <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="compact" />
                   </td>
                   <td className="px-4 py-2.5 text-zinc-600">
                     {job.score !== null ? job.score : '--'}

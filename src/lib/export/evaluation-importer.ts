@@ -53,9 +53,11 @@ export function parseEvaluationResults(jsonText: string): ParseResult<Evaluation
     }
     const rawH1b = ['yes', 'no', 'unknown'].includes(item.h1b_sponsorship) ? item.h1b_sponsorship : undefined;
     const h1b = rawH1b === 'unknown' ? undefined : rawH1b;
-    const score_tags = Array.isArray(item.score_tags)
-      ? item.score_tags.filter((t: unknown) => typeof t === 'string' && (SCORE_TAGS as readonly string[]).includes(t))
-      : undefined;
+    const rawTags = Array.isArray(item.score_tags) ? item.score_tags : [];
+    if (rawTags.includes('domain_gap')) {
+      warnings.push(`Item ${i + 1} (id=${item.id}): bare "domain_gap" is deprecated — use domain_gap:minor, domain_gap:major, or domain_gap:blocker`);
+    }
+    const score_tags = rawTags.filter((t: unknown) => typeof t === 'string' && (SCORE_TAGS as readonly string[]).includes(t));
 
     // Warn if score_reason is missing
     const score_reason = item.score_reason && typeof item.score_reason === 'string' && item.score_reason.trim()

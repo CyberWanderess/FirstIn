@@ -1,11 +1,22 @@
 // Background service worker for FirstIn extension
 // Proxies API requests from content scripts to bypass CORS
 
-import { getConfig, isConfigured } from '../shared/storage';
+import { getConfig, setConfig, isConfigured } from '../shared/storage';
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.runtime.openOptionsPage();
+  }
+});
+
+// Listen for auth token from the extension login callback page
+chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+  if (message.type === 'auth-token' && message.token && sender.url) {
+    const serverUrl = new URL(sender.url).origin;
+    setConfig({ serverUrl, apiToken: message.token }).then(() => {
+      sendResponse({ ok: true });
+    });
+    return true; // async
   }
 });
 
@@ -37,6 +48,11 @@ async function handleApiRequest(method: string, path: string, body?: unknown) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  if (res.status === 401) {
+    await setConfig({ apiToken: '' });
+    return { success: false, error: 'Session expired. Please log in again.' };
+  }
 
   return await res.json();
 }

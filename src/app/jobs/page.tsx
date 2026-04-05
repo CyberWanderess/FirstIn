@@ -7,7 +7,9 @@ import { listJobs } from '@/lib/repositories/job-repository';
 import { StatusBadge } from '@/components/status-badge';
 import { ExpandableReason } from '@/components/expandable-reason';
 import { JobFilterBar } from '@/components/job-filter-bar';
-import { ArchiveButton } from '@/components/archive-button';
+import { StatusActions } from '@/components/status-actions';
+import { DedupPanel } from '@/components/dedup-panel';
+import type { JobStatus } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,9 +50,10 @@ export default async function JobsPage({
   const rawStatus = params.status ?? DEFAULT_STATUSES;
   const status = rawStatus === 'all' ? undefined : rawStatus;
   const q = params.q || undefined;
-  const sort = params.sort || 'created_at';
+  const isReadyToApply = status === 'ready_to_apply';
+  const sort = params.sort || (isReadyToApply ? 'score_success' : 'created_at');
   const order = params.order || 'DESC';
-  const sort2 = params.sort2 || '';
+  const sort2 = params.sort2 || (isReadyToApply && !params.sort ? 'score' : '');
   const order2 = params.order2 || 'DESC';
   const sort3 = params.sort3 || '';
   const order3 = params.order3 || 'DESC';
@@ -58,6 +61,8 @@ export default async function JobsPage({
   const limit = 50;
   const offset = (page - 1) * limit;
 
+  const tags = params.tags || undefined;
+  const excludeTags = params.exclude_tags || undefined;
   const showExpired = params.expired === 'show';
   const { jobs, total } = listJobs({
     status, q, sort, order,
@@ -65,6 +70,8 @@ export default async function JobsPage({
     order2: order2 || undefined,
     sort3: sort3 || undefined,
     order3: order3 || undefined,
+    tags,
+    excludeTags,
     excludeExpired: !showExpired,
     limit, offset,
   });
@@ -101,6 +108,8 @@ export default async function JobsPage({
         initialOrder2={order2}
         initialSort3={sort3}
         initialOrder3={order3}
+        initialTags={tags}
+        initialExcludeTags={excludeTags}
       />
 
       {/* Results count */}
@@ -110,16 +119,19 @@ export default async function JobsPage({
           {status && <span> with status &quot;{status.replace(/_/g, ' ')}&quot;</span>}
           {q && <span> matching &quot;{q}&quot;</span>}
         </div>
-        <Link
-          href={buildUrl(showExpired ? { expired: '' } : { expired: 'show' })}
-          className={`text-xs px-2 py-1 rounded border transition-colors ${
-            showExpired
-              ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-              : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'
-          }`}
-        >
-          {showExpired ? 'Hide Expired' : 'Show Expired'}
-        </Link>
+        <div className="flex items-center gap-2">
+          <DedupPanel />
+          <Link
+            href={buildUrl(showExpired ? { expired: '' } : { expired: 'show' })}
+            className={`text-xs px-2 py-1 rounded border transition-colors ${
+              showExpired
+                ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+                : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'
+            }`}
+          >
+            {showExpired ? 'Hide Expired' : 'Show Expired'}
+          </Link>
+        </div>
       </div>
 
       {/* Table */}
@@ -183,12 +195,27 @@ export default async function JobsPage({
                   </div>
                 </td>
                 <td className="px-4 py-2.5">
-                  <Link
-                    href={`/jobs/${job.id}`}
-                    className="text-zinc-900 font-medium hover:underline"
-                  >
-                    {job.title}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`/jobs/${job.id}`}
+                      className="text-zinc-900 font-medium hover:underline"
+                    >
+                      {job.title}
+                    </Link>
+                    {(job.apply_url || job.jd_url) && (
+                      <a
+                        href={job.apply_url || job.jd_url!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-zinc-400 hover:text-blue-600 shrink-0"
+                        title="View original posting"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5 text-zinc-600">
                   {job.score_success !== null || job.score !== null ? (
@@ -214,9 +241,7 @@ export default async function JobsPage({
                       <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-green-100 text-green-700 shrink-0">Visa OK</span>
                     )}
                   </div>
-                  {!job.status.startsWith('archived') && job.status !== 'offer' && job.status !== 'rejected' && job.status !== 'interviewing' && (
-                    <ArchiveButton jobId={job.id} />
-                  )}
+                  <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="compact" />
                 </td>
                 <td className="px-4 py-2.5">
                   <ExpandableReason

@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/route-handler';
 import { listJobs, findJobById } from '@/lib/repositories/job-repository';
 import { exportJobsForEvaluation } from '@/lib/export/evaluation-exporter';
+import { getSetting } from '@/lib/repositories/settings-repository';
 import { jsonResponse } from '@/lib/api-utils';
 import type { JobWithCompany } from '@/types';
 
@@ -21,6 +22,11 @@ export const GET = withAuth(async (req) => {
     jobs = result.jobs;
   }
 
-  const text = exportJobsForEvaluation(jobs, format);
+  const config = {
+    scoringGuidance: getSetting('eval_scoring_guidance', '') || undefined,
+    calibrationExamples: getSetting('eval_calibration_examples', '') || undefined,
+    scoreTags: getSetting('eval_score_tags', '') || undefined,
+  };
+  const text = exportJobsForEvaluation(jobs, format, config);
   return jsonResponse({ text, jobCount: jobs.length });
 });

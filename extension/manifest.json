@@ -5,6 +5,9 @@
   "description": "Save jobs from LinkedIn/Indeed to FirstIn",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["http://*/api/extension/*", "https://*/api/extension/*"],
+  "externally_connectable": {
+    "matches": ["http://*/*", "https://*/*"]
+  },
   "background": {
     "service_worker": "dist/background.js"
   },

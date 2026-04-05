@@ -3,6 +3,7 @@
  * and batch save functionality into LinkedIn job search result cards.
  */
 import { checkBatch, saveBatch } from '../../shared/api-client';
+import { makeDraggable } from '../../shared/draggable';
 import { expandDescription, findDescription, findSalary, findLocationMeta, findPostedDate } from './selectors';
 import type { JobPayload } from '../../shared/types';
 
@@ -400,7 +401,9 @@ function updateToolbar() {
         box-shadow: 0 8px 24px rgba(0,0,0,0.25);
         font-size: 14px;
         font-weight: 500;
+        cursor: grab;
       }
+      .toolbar:active { cursor: grabbing; }
       .count { color: #34d399; font-weight: 700; }
       .progress { color: #94a3b8; font-size: 12px; }
       button {
@@ -422,6 +425,8 @@ function updateToolbar() {
       .result { color: #34d399; font-size: 13px; }
     `;
     toolbar.shadowRoot!.appendChild(style);
+    // Make the toolbar draggable — bar itself is the handle (buttons excluded automatically)
+    makeDraggable(toolbar, toolbar);
   }
 
   renderToolbarContent(toolbar);

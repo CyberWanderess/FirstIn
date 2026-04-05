@@ -9,7 +9,7 @@ const STATUS_COLORS: Record<string, string> = {
   applied: 'bg-cyan-100 text-cyan-800',
   interviewing: 'bg-orange-100 text-orange-800',
   offer: 'bg-emerald-100 text-emerald-800',
-  rejected: 'bg-red-100 text-red-800',
+  rejected_resume: 'bg-red-100 text-red-800',
   archived_filtered: 'bg-zinc-100 text-zinc-600',
   archived_low_match: 'bg-zinc-100 text-zinc-600',
   archived_no_response: 'bg-zinc-100 text-zinc-600',

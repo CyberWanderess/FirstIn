@@ -21,7 +21,7 @@ export function getRejectionScanPrompt(days: number): string {
     '  {',
     '    "company": "Example Corp",',
     '    "title": "Software Engineer",',
-    '    "rejection_reason": "简历拒"',
+    '    "rejection_reason": "resume"',
     '  }',
     ']',
     '```',

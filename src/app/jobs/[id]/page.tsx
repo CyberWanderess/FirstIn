@@ -5,9 +5,8 @@ import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { findJobById } from '@/lib/repositories/job-repository';
 import { getEntityHistory } from '@/lib/repositories/operation-log-repository';
-import { getAllowedTransitions } from '@/lib/status-machine';
 import { StatusBadge } from '@/components/status-badge';
-import { JobStatusTransitions } from './status-transitions';
+import { StatusActions } from '@/components/status-actions';
 import { JobNotesEditor } from './notes-editor';
 import type { JobStatus } from '@/types';
 
@@ -45,7 +44,6 @@ export default async function JobDetailPage({
   if (!job) notFound();
 
   const history = getEntityHistory('job', job.id, 50);
-  const allowedTransitions = getAllowedTransitions(job.status as JobStatus);
 
   return (
     <div className="space-y-6">
@@ -109,13 +107,7 @@ export default async function JobDetailPage({
         <h2 className="font-semibold text-zinc-900 mb-3">Status</h2>
         <div className="flex items-center gap-4 flex-wrap">
           <StatusBadge status={job.status} />
-          {allowedTransitions.length > 0 && (
-            <JobStatusTransitions
-              jobId={job.id}
-              currentStatus={job.status}
-              allowedTransitions={allowedTransitions}
-            />
-          )}
+          <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="expanded" />
         </div>
       </div>
 
@@ -238,7 +230,13 @@ function InfoCard({ label, value, subtitle }: { label: string; value: string; su
 
 function formatHistoryDetails(details: Record<string, unknown>): string {
   if (details.from !== undefined && details.to !== undefined) {
-    return `${details.from || '(none)'} -> ${details.to}`;
+    let text = `${details.from || '(none)'} -> ${details.to}`;
+    if (details.source === 'mbox_import') {
+      text += ` (via mbox${details.rejection_date ? `, ${details.rejection_date}` : ''})`;
+    } else if (details.source === 'rejection_email_scan') {
+      text += ' (via email scan)';
+    }
+    return text;
   }
   if (details.score !== undefined) {
     return `Score: ${details.score}${details.score_reason ? ` (${details.score_reason})` : ''}`;

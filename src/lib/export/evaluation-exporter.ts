@@ -4,6 +4,7 @@ import {
   DEFAULT_SCORING_GUIDANCE,
   DEFAULT_CALIBRATION_EXAMPLES,
   DEFAULT_SCORE_TAGS,
+  DEFAULT_CANDIDATE_PROFILE,
 } from './evaluation-defaults';
 
 export interface EvalPromptConfig {
@@ -38,6 +39,8 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '```',
     '',
     '**IMPORTANT: score_reason is REQUIRED.** Write 1-2 sentences explaining why you gave this score. Include key match/mismatch factors. Do NOT leave it empty.',
+    '',
+    'Before scoring, identify each job\'s actual daily work and must-have skills (not nice-to-haves or boilerplate). Score based on daily work fit, not surface keywords.',
     '',
     '## Dual Scoring (1-10 scale)',
     '',
@@ -83,6 +86,8 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     '',
     ...(config?.calibrationExamples || DEFAULT_CALIBRATION_EXAMPLES).split('\n'),
     '',
+    ...(DEFAULT_CANDIDATE_PROFILE).split('\n'),
+    '',
     '---',
     '',
   ];
@@ -93,6 +98,7 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
     lines.push('**Company Context:**');
     lines.push(`- Industry: ${job.company_industry || 'Unknown'}`);
     lines.push(`- Size: ${job.company_size || 'Unknown'}`);
+    lines.push(`- Funding Round: ${job.funding_round || 'Unknown'}`);
     if (job.company_description) {
       lines.push(`- Description: ${job.company_description}`);
     }
@@ -115,7 +121,8 @@ export function exportJobsForEvaluation(jobs: JobWithCompany[], format: 'markdow
 
     if (job.jd_full_text) {
       lines.push('**Full Job Description:**');
-      lines.push(cleanJdText(job.jd_full_text));
+      // Use pre-cleaned JD if available (Haiku cleanup), otherwise fall back to HTML-cleaned version
+      lines.push((job as any).jd_cleaned_text || cleanJdText(job.jd_full_text));
     } else {
       lines.push('**Full Job Description:** Not available');
       if (job.jd_url) lines.push(`JD URL: ${job.jd_url}`);

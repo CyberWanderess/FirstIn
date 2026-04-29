@@ -15,6 +15,12 @@ import { migration013 } from './013_salary_currency';
 import { migration014 } from './014_job_source_ids';
 import { migration015 } from './015_posted_at';
 import { migration016 } from './016_rename_rejected';
+import { migration017 } from './017_application_meta';
+import { migration018 } from './018_auto_eval_log';
+import { migration019 } from './019_jd_cleaned_text';
+import { migration020 } from './020_qa_flagged';
+import { migration021 } from './021_perf_indexes';
+import { migration022 } from './022_prompt_templates';
 
 interface Migration {
   id: number;
@@ -39,6 +45,12 @@ const migrations: Migration[] = [
   { id: 14, name: '014_job_source_ids', up: migration014 },
   { id: 15, name: '015_posted_at', up: migration015 },
   { id: 16, name: '016_rename_rejected', up: migration016 },
+  { id: 17, name: '017_application_meta', up: migration017 },
+  { id: 18, name: '018_auto_eval_log', up: migration018 },
+  { id: 19, name: '019_jd_cleaned_text', up: migration019 },
+  { id: 20, name: '020_qa_flagged', up: migration020 },
+  { id: 21, name: '021_perf_indexes', up: migration021 },
+  { id: 22, name: '022_prompt_templates', up: migration022 },
 ];
 
 export function runMigrations(db: Database.Database): void {

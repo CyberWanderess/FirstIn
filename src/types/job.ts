@@ -75,7 +75,11 @@ export interface Job {
   visa_sponsorship: string | null;
   score_tags: string[] | null;
   posted_at: string | null;
+  resume_tailored: boolean | null;
+  has_referral: boolean | null;
   notes: string | null;
+  qa_flagged: number;
+  qa_notes: string | null;
   created_at: string;
   updated_at: string;
   status_changed_at: string;
@@ -146,5 +150,9 @@ export interface JobUpdate {
   deep_analysis?: string | null;
   visa_sponsorship?: string | null;
   score_tags?: string[] | null;
+  resume_tailored?: boolean | null;
+  has_referral?: boolean | null;
   notes?: string | null;
+  qa_flagged?: number;
+  qa_notes?: string | null;
 }

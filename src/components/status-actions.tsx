@@ -28,6 +28,7 @@ const ARCHIVE_REASONS = [
   'Skill Mismatch',
   'Cautious Apply',
   'Eligibility Mismatch',
+  'Not Worth the Effort',
 ];
 
 function isArchiveStatus(status: string): boolean {

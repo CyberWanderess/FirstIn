@@ -4,14 +4,18 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { TabNav } from '@/components/tab-nav';
 import ImportContent from './import-content';
-import { CompaniesTab, JobsTab, DeepAnalysisTab, RejectionsTab } from './evaluate-content';
+import { CompaniesTab, JobsTab, DeepAnalysisTab, RejectionsTab, RecheckTab, AutoEvalLogTab } from './evaluate-content';
+import { PromptsTab } from './prompts-content';
 
 const TABS = [
   { key: 'import', label: 'Import' },
   { key: 'companies', label: 'Companies' },
   { key: 'evaluation', label: 'Evaluation' },
+  { key: 'recheck', label: 'Recheck' },
   { key: 'deep', label: 'Deep Analysis' },
   { key: 'rejections', label: 'Rejections' },
+  { key: 'prompts', label: 'Prompts' },
+  { key: 'auto-eval', label: 'Auto Eval Log' },
 ];
 
 function WorkspaceContent() {
@@ -25,8 +29,11 @@ function WorkspaceContent() {
       {tab === 'import' && <ImportContent />}
       {tab === 'companies' && <CompaniesTab />}
       {tab === 'evaluation' && <JobsTab />}
+      {tab === 'recheck' && <RecheckTab />}
       {tab === 'deep' && <DeepAnalysisTab />}
       {tab === 'rejections' && <RejectionsTab />}
+      {tab === 'prompts' && <PromptsTab />}
+      {tab === 'auto-eval' && <AutoEvalLogTab />}
     </div>
   );
 }

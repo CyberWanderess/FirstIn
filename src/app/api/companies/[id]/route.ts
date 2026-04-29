@@ -44,6 +44,16 @@ export const PATCH = withAuth(async (req, context) => {
       });
     }
 
+    if (body.qa_flagged !== undefined && body.qa_flagged !== existing.qa_flagged) {
+      logOperation({
+        operation: 'clear_qa_flag',
+        entity_type: 'company',
+        entity_id: companyId,
+        trigger: 'user',
+        details: { from: existing.qa_flagged, to: body.qa_flagged, prior_notes: existing.qa_notes },
+      });
+    }
+
     const updated = updateCompany(companyId, body);
     return jsonResponse(updated);
   } catch (e) {

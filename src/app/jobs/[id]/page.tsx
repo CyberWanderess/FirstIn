@@ -8,6 +8,8 @@ import { getEntityHistory } from '@/lib/repositories/operation-log-repository';
 import { StatusBadge } from '@/components/status-badge';
 import { StatusActions } from '@/components/status-actions';
 import { JobNotesEditor } from './notes-editor';
+import { ApplicationMetaEditor } from './application-meta-editor';
+import { ClearQAFlagBanner } from './clear-qa-flag-banner';
 import type { JobStatus } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -51,6 +53,11 @@ export default async function JobDetailPage({
       <Link href="/jobs" className="text-sm text-zinc-500 hover:text-zinc-700">
         &larr; Back to Jobs
       </Link>
+
+      {/* QA flag banner */}
+      {job.qa_flagged === 1 && (
+        <ClearQAFlagBanner jobId={job.id} notes={job.qa_notes} />
+      )}
 
       {/* Header */}
       <div className="bg-white border border-zinc-200 rounded-lg p-6">
@@ -109,6 +116,11 @@ export default async function JobDetailPage({
           <StatusBadge status={job.status} />
           <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="expanded" />
         </div>
+        <ApplicationMetaEditor
+          jobId={job.id}
+          initialTailored={job.resume_tailored}
+          initialReferral={job.has_referral}
+        />
       </div>
 
       {/* Job Description */}

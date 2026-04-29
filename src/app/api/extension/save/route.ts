@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server';
 import { extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
 import { withExtensionAuth } from '@/lib/route-handler';
+import { userContext } from '@/lib/db';
+import { checkFeature, checkQuota } from '@/lib/permissions';
 import { findOrCreateCompany } from '@/lib/repositories/company-repository';
-import { insertJob, listJobs, updateJob, findJobBySourceId, addJobSourceId } from '@/lib/repositories/job-repository';
+import { insertJob, findJobById, listJobsByCompanyId, updateJob, findJobBySourceId, addJobSourceId } from '@/lib/repositories/job-repository';
 import { listRules } from '@/lib/repositories/rule-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { logOperation } from '@/lib/repositories/operation-log-repository';
@@ -32,6 +34,11 @@ export async function OPTIONS() { return extOptionsResponse(); }
 
 export const POST = withExtensionAuth(async (req) => {
   try {
+    const userId = userContext.getStore()!.userId;
+    if (!checkFeature(userId, 'can_use_extension')) return extErrorResponse('Extension access not available for your plan', 403);
+    const jobQuota = checkQuota(userId, 'max_jobs');
+    if (!jobQuota.allowed) return extErrorResponse(`Job limit reached (${jobQuota.limit})`, 429);
+
     const body = await req.json() as SaveRequest;
     if (!body.title || !body.company_name) {
       return extErrorResponse('title and company_name are required');
@@ -40,12 +47,11 @@ export const POST = withExtensionAuth(async (req) => {
     const company = findOrCreateCompany(body.company_name);
     const source = body.source || 'manual';
 
-    // Fast path: source_id lookup via association table
+    // Fast path: source_id lookup via association table (indexed on source, source_id)
     if (body.source_id && source) {
       const existingJobId = findJobBySourceId(source, body.source_id);
       if (existingJobId) {
-        const { jobs: allJobs } = listJobs({ limit: 10000, offset: 0 });
-        const matchedJob = allJobs.find(j => j.id === existingJobId);
+        const matchedJob = findJobById(existingJobId);
         return extJsonResponse({
           saved: false,
           duplicate: true,
@@ -56,8 +62,11 @@ export const POST = withExtensionAuth(async (req) => {
       }
     }
 
-    // Slow path: content hash dedup
-    const { jobs: existingJobs } = listJobs({ limit: 10000, offset: 0 });
+    // Fallback dedup path: only compare against jobs for this same company.
+    // checkDuplicate already filters by company_id internally, so loading the
+    // full table was pure waste. Per-company rowcount is typically <100 which
+    // keeps trigram similarity O(small).
+    const existingJobs = listJobsByCompanyId(company.id);
     const candidate: JobInsert & { company_id: number } = {
       company_id: company.id,
       title: body.title,
@@ -94,6 +103,11 @@ export const POST = withExtensionAuth(async (req) => {
     const blockedAction = getSetting('blocked_action', 'auto_exclude');
     const jobNoVisaAction = getSetting('job_no_visa_action', 'auto_exclude');
 
+    // visa scan and jd cleanup each traverse body.jd_full_text once. They are
+    // kept separate because they have incompatible output types (enum vs string)
+    // and fundamentally different transforms (regex pattern match vs HTML strip
+    // + entity decode); merging into a single pass would hurt readability without
+    // a meaningful speedup since both are cheap vs the LLM evaluation that runs later.
     const visaScan = body.jd_full_text ? scanVisaSponsorship(body.jd_full_text) : null;
     const ruleResult = evaluateJob(
       { ...candidate, company_name: company.display_name, visa_sponsorship: visaScan },
@@ -124,7 +138,7 @@ export const POST = withExtensionAuth(async (req) => {
       jd_full_text: cleanedJd,
       jd_fetch_status: cleanedJd ? 'success' : 'pending',
       jd_content_hash: cleanedJd ? hashContent(cleanedJd) : null,
-      visa_sponsorship: body.jd_full_text ? scanVisaSponsorship(body.jd_full_text) : null,
+      visa_sponsorship: visaScan,
       source,
       source_id: body.source_id ?? null,
       posted_at: body.posted_at ?? null,

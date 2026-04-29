@@ -142,12 +142,20 @@ export default async function CompaniesPage({
             {companies.map((company) => (
               <tr key={company.id} className="hover:bg-zinc-50 transition-colors">
                 <td className="px-4 py-2.5">
-                  <Link
-                    href={`/companies/${company.id}`}
-                    className="text-zinc-900 font-medium hover:underline"
-                  >
-                    {company.display_name}
-                  </Link>
+                  <div className="flex items-center gap-1.5">
+                    <Link
+                      href={`/companies/${company.id}`}
+                      className="text-zinc-900 font-medium hover:underline"
+                    >
+                      {company.display_name}
+                    </Link>
+                    {company.qa_flagged === 1 && (
+                      <span
+                        title={company.qa_notes ?? 'QA agent flagged this company'}
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-300 shrink-0"
+                      >QA</span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-2.5 text-zinc-600">
                   {company.industry || '--'}

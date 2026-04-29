@@ -1,10 +1,10 @@
 /**
  * Match extracted rejections to existing jobs in the database.
- * Uses the existing rejection-exporter matching logic as foundation.
+ * Priority: match via confirmation emails first, then fall back to DB with time proximity.
  */
 
 import type { JobWithCompany } from '@/types';
-import type { ExtractedRejection } from './extractor';
+import type { ExtractedRejection, ExtractedConfirmation } from './extractor';
 
 export interface MatchedMboxRejection {
   extraction: ExtractedRejection;
@@ -13,6 +13,7 @@ export interface MatchedMboxRejection {
   jobCompany: string;
   jobStatus: string;
   confidence: 'high' | 'medium' | 'low';
+  matchedVia?: 'confirmation' | 'db_direct';
 }
 
 export interface UnmatchedMboxRejection {
@@ -32,10 +33,12 @@ export interface MatchResult {
 
 /**
  * Match extracted rejections against jobs in the database.
+ * When confirmations are available, uses them to improve match accuracy.
  */
 export function matchRejections(
   rejections: ExtractedRejection[],
   jobs: JobWithCompany[],
+  confirmations?: ExtractedConfirmation[],
 ): MatchResult {
   const matched: MatchedMboxRejection[] = [];
   const unmatched: UnmatchedMboxRejection[] = [];
@@ -49,11 +52,25 @@ export function matchRejections(
       continue;
     }
 
+    // Find matching confirmation for this rejection (same company, date before rejection)
+    const confirmation = confirmations?.find(c =>
+      fuzzyCompanyMatch(c.company, rej.company) &&
+      (!c.confirmationDate || !rej.rejectionDate || c.confirmationDate <= rej.rejectionDate)
+    );
+
     // Among company matches, try title match
     const titleMatches = companyMatches.filter(j => fuzzyTitleMatch(rej.role, j.title));
 
-    if (titleMatches.length > 0) {
-      const best = pickBest(titleMatches);
+    // Also try matching confirmation's role if rejection role is unknown
+    const effectiveTitleMatches = titleMatches.length > 0 ? titleMatches :
+      (confirmation && confirmation.role !== 'Unknown'
+        ? companyMatches.filter(j => fuzzyTitleMatch(confirmation.role, j.title))
+        : []);
+
+    if (effectiveTitleMatches.length > 0) {
+      // Use confirmation date or rejection date for time proximity ranking
+      const referenceDate = confirmation?.confirmationDate || rej.rejectionDate;
+      const best = pickBestByTimeProximity(effectiveTitleMatches, referenceDate);
       matched.push({
         extraction: rej,
         jobId: best.id,
@@ -61,9 +78,10 @@ export function matchRejections(
         jobCompany: best.company_display_name,
         jobStatus: best.status,
         confidence: 'high',
+        matchedVia: confirmation ? 'confirmation' : 'db_direct',
       });
-    } else if (companyMatches.length === 1 && rej.role === 'Unknown') {
-      // Only one job at this company and we don't know the role — likely match
+    } else if (companyMatches.length === 1) {
+      // Only one job at this company — likely match
       const best = companyMatches[0];
       matched.push({
         extraction: rej,
@@ -71,14 +89,29 @@ export function matchRejections(
         jobTitle: best.title,
         jobCompany: best.company_display_name,
         jobStatus: best.status,
-        confidence: 'low',
+        confidence: confirmation ? 'medium' : 'low',
+        matchedVia: confirmation ? 'confirmation' : 'db_direct',
       });
     } else {
-      // Multiple jobs, no title match — ambiguous
-      unmatched.push({
-        extraction: rej,
-        candidateJobs: companyMatches.map(j => ({ id: j.id, title: j.title, company: j.company_display_name })),
-      });
+      // Multiple jobs, no title match — try time proximity if we have a date
+      const referenceDate = confirmation?.confirmationDate || rej.rejectionDate;
+      if (referenceDate) {
+        const best = pickBestByTimeProximity(companyMatches, referenceDate);
+        matched.push({
+          extraction: rej,
+          jobId: best.id,
+          jobTitle: best.title,
+          jobCompany: best.company_display_name,
+          jobStatus: best.status,
+          confidence: 'low',
+          matchedVia: confirmation ? 'confirmation' : 'db_direct',
+        });
+      } else {
+        unmatched.push({
+          extraction: rej,
+          candidateJobs: companyMatches.map(j => ({ id: j.id, title: j.title, company: j.company_display_name })),
+        });
+      }
     }
   }
 
@@ -141,11 +174,27 @@ function fuzzyTitleMatch(rejTitle: string, jobTitle: string): boolean {
   return overlap / minSize >= 0.5;
 }
 
-function pickBest(jobs: JobWithCompany[]): JobWithCompany {
-  // Prefer applied > other statuses, then most recent
+/**
+ * Pick the job with status_changed_at closest to the reference date.
+ * Falls back to preferring 'applied' status then most recent.
+ */
+function pickBestByTimeProximity(jobs: JobWithCompany[], referenceDate: string): JobWithCompany {
+  if (!referenceDate) {
+    // No date — fall back to status preference + recency
+    return jobs.sort((a, b) => {
+      if (a.status === 'applied' && b.status !== 'applied') return -1;
+      if (b.status === 'applied' && a.status !== 'applied') return 1;
+      return (b.status_changed_at || b.updated_at).localeCompare(a.status_changed_at || a.updated_at);
+    })[0];
+  }
+
+  const refTime = new Date(referenceDate).getTime();
   return jobs.sort((a, b) => {
-    if (a.status === 'applied' && b.status !== 'applied') return -1;
-    if (b.status === 'applied' && a.status !== 'applied') return 1;
-    return (b.status_changed_at || b.updated_at).localeCompare(a.status_changed_at || a.updated_at);
+    const aTime = new Date(a.status_changed_at || a.updated_at).getTime();
+    const bTime = new Date(b.status_changed_at || b.updated_at).getTime();
+    // Prefer jobs with status_changed_at before the reference date, closest first
+    const aDiff = Math.abs(refTime - aTime);
+    const bDiff = Math.abs(refTime - bTime);
+    return aDiff - bDiff;
   })[0];
 }

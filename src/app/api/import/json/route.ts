@@ -1,4 +1,6 @@
 import { withAuth } from '@/lib/route-handler';
+import { userContext } from '@/lib/db';
+import { checkFeature, checkQuota, incrementUsage } from '@/lib/permissions';
 import { jsonResponse, errorResponse, parseJsonBody } from '@/lib/api-utils';
 import type { JobInsert } from '@/types';
 
@@ -19,6 +21,11 @@ interface RawJob {
 
 export const POST = withAuth(async (req) => {
   try {
+    const userId = userContext.getStore()!.userId;
+    if (!checkFeature(userId, 'can_import')) return errorResponse('Import not available for your plan', 403);
+    const quota = checkQuota(userId, 'max_import_per_day');
+    if (!quota.allowed) return errorResponse(`Daily import limit reached (${quota.limit})`, 429);
+
     const body = await parseJsonBody<{ jobs: RawJob[] }>(req);
     if (!body.jobs || !Array.isArray(body.jobs)) {
       return errorResponse('Expected { "jobs": [...] } format');
@@ -63,6 +70,7 @@ export const POST = withAuth(async (req) => {
       });
     }
 
+    incrementUsage(userId, 'max_import_per_day');
     return jsonResponse({ items, warnings });
   } catch (e) {
     return errorResponse((e as Error).message);

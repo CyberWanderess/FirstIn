@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PermissionsSection, type PermissionGroupClient } from './permissions-section';
 
 interface UserWithStats {
   id: number;
@@ -8,6 +9,7 @@ interface UserWithStats {
   display_name: string | null;
   role: 'admin' | 'user';
   disabled: boolean;
+  permission_group_id: number | null;
   created_at: string;
   job_count: number;
 }
@@ -34,13 +36,16 @@ export function AdminClient({
   users: initialUsers,
   invites: initialInvites,
   currentUserId,
+  permissionGroups: initialGroups,
 }: {
   users: UserWithStats[];
   invites: Invite[];
   currentUserId: number;
+  permissionGroups: PermissionGroupClient[];
 }) {
   const [users, setUsers] = useState(initialUsers);
   const [invites, setInvites] = useState(initialInvites);
+  const [groups, setGroups] = useState(initialGroups);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
   const [expiryHours, setExpiryHours] = useState(168); // default 7 days
@@ -75,6 +80,25 @@ export function AdminClient({
       if (!res.ok) throw new Error(data.error);
       setUsers(prev => prev.filter(u => u.id !== userId));
       setConfirmDelete(null);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function handleChangeGroup(userId: number, groupId: number) {
+    setLoading(`group-${userId}`);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission_group_id: groupId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, permission_group_id: groupId } : u));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -162,6 +186,7 @@ export function AdminClient({
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Email</th>
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Name</th>
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Role</th>
+              <th className="text-left px-4 py-2 font-medium text-zinc-600">Group</th>
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Jobs</th>
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Status</th>
               <th className="text-left px-4 py-2 font-medium text-zinc-600">Created</th>
@@ -179,6 +204,20 @@ export function AdminClient({
                   }`}>
                     {u.role}
                   </span>
+                </td>
+                <td className="px-4 py-2.5">
+                  <select
+                    value={u.permission_group_id ?? ''}
+                    onChange={e => handleChangeGroup(u.id, Number(e.target.value))}
+                    disabled={loading === `group-${u.id}`}
+                    className="text-xs border border-zinc-200 rounded px-1.5 py-1 bg-white disabled:opacity-50"
+                  >
+                    {groups.map(g => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}{g.is_default ? ' (default)' : ''}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="px-4 py-2.5 text-zinc-700 text-xs font-mono">{u.job_count}</td>
                 <td className="px-4 py-2.5">
@@ -237,6 +276,9 @@ export function AdminClient({
           </tbody>
         </table>
       </div>
+
+      {/* Permission Groups */}
+      <PermissionsSection groups={groups} onGroupsChange={setGroups} />
 
       {/* Invites */}
       <div className="bg-white border border-zinc-200 rounded-lg p-6 space-y-4">

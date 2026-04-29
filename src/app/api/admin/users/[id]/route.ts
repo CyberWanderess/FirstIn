@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { setUserDisabled, deleteUser } from '@/lib/auth-db';
+import { assignUserGroup } from '@/lib/permissions';
 import { closeDb } from '@/lib/db';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,13 +16,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const body = await req.json();
-  const { disabled } = body;
+  const { disabled, permission_group_id } = body;
 
-  if (typeof disabled !== 'boolean') {
-    return NextResponse.json({ error: 'disabled field (boolean) is required' }, { status: 400 });
+  if (typeof disabled === 'boolean') {
+    setUserDisabled(userId, disabled);
   }
 
-  setUserDisabled(userId, disabled);
+  if (typeof permission_group_id === 'number') {
+    assignUserGroup(userId, permission_group_id);
+  }
+
+  if (typeof disabled !== 'boolean' && typeof permission_group_id !== 'number') {
+    return NextResponse.json({ error: 'disabled (boolean) or permission_group_id (number) required' }, { status: 400 });
+  }
+
   return NextResponse.json({ success: true });
 }
 

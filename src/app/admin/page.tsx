@@ -1,6 +1,7 @@
 import { requireAuthPage } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { listAllUsers, listInvites } from '@/lib/auth-db';
+import { listPermissionGroups } from '@/lib/permissions';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 import Database from 'better-sqlite3';
@@ -29,6 +30,14 @@ export default async function AdminPage() {
   });
 
   const invites = listInvites();
+  const permissionGroups = listPermissionGroups();
 
-  return <AdminClient users={usersWithStats} invites={invites} currentUserId={user.id} />;
+  return (
+    <AdminClient
+      users={usersWithStats}
+      invites={invites}
+      currentUserId={user.id}
+      permissionGroups={permissionGroups}
+    />
+  );
 }

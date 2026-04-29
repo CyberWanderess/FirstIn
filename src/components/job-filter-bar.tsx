@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation';
 import { JOB_STATUSES, STATUS_LABELS, type ScoreTag } from '@/types';
 import { useClickOutside } from '@/hooks/use-click-outside';
 
+export interface FilterParams {
+  status?: string;
+  q?: string;
+  sort: string;
+  order: string;
+  sort2?: string;
+  order2?: string;
+  sort3?: string;
+  order3?: string;
+  tags?: string;
+  excludeTags?: string;
+  createdAfter?: string;
+  qaFlaggedOnly?: boolean;
+}
+
 // All filterable tags including legacy domain_gap for existing data
 const FILTER_TAGS: string[] = [
   'strong_match', 'rare_opportunity',
@@ -49,6 +64,9 @@ export function JobFilterBar({
   initialOrder3,
   initialTags,
   initialExcludeTags,
+  initialQaFlaggedOnly,
+  onChange,
+  hideStatusFilter,
 }: {
   initialStatus?: string;
   initialQ?: string;
@@ -60,6 +78,11 @@ export function JobFilterBar({
   initialOrder3?: string;
   initialTags?: string;
   initialExcludeTags?: string;
+  initialQaFlaggedOnly?: boolean;
+  /** When provided, calls this instead of router.push — enables use in client-side components */
+  onChange?: (params: FilterParams) => void;
+  /** Hide the status multi-select (e.g. when status is fixed externally) */
+  hideStatusFilter?: boolean;
 }) {
   const router = useRouter();
   const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(() => {
@@ -81,6 +104,8 @@ export function JobFilterBar({
     if (!initialExcludeTags) return new Set();
     return new Set(initialExcludeTags.split(',').filter(Boolean));
   });
+  const [ageDays, setAgeDays] = useState('');
+  const [qaFlaggedOnly, setQaFlaggedOnly] = useState(initialQaFlaggedOnly ?? false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -120,7 +145,34 @@ export function JobFilterBar({
     });
   }
 
+  function daysAgoISO(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toISOString().slice(0, 19).replace('T', ' ');
+  }
+
+  function buildFilterParams(): FilterParams {
+    return {
+      status: selectedStatuses.size > 0 ? Array.from(selectedStatuses).join(',') : undefined,
+      q: q.trim() || undefined,
+      sort,
+      order,
+      sort2: sort2 || undefined,
+      order2: sort2 ? order2 : undefined,
+      sort3: sort3 || undefined,
+      order3: sort3 ? order3 : undefined,
+      tags: includeTags.size > 0 ? Array.from(includeTags).join(',') : undefined,
+      excludeTags: excludeTags.size > 0 ? Array.from(excludeTags).join(',') : undefined,
+      createdAfter: ageDays ? daysAgoISO(parseInt(ageDays)) : undefined,
+      qaFlaggedOnly: qaFlaggedOnly || undefined,
+    };
+  }
+
   function applyFilters() {
+    if (onChange) {
+      onChange(buildFilterParams());
+      return;
+    }
     const params = new URLSearchParams();
     if (selectedStatuses.size > 0) {
       params.set('status', Array.from(selectedStatuses).join(','));
@@ -140,6 +192,8 @@ export function JobFilterBar({
     }
     if (includeTags.size > 0) params.set('tags', Array.from(includeTags).join(','));
     if (excludeTags.size > 0) params.set('exclude_tags', Array.from(excludeTags).join(','));
+    if (ageDays) params.set('created_after', daysAgoISO(parseInt(ageDays)));
+    if (qaFlaggedOnly) params.set('qaFlagged', '1');
     const qs = params.toString();
     router.push(`/jobs${qs ? `?${qs}` : ''}`);
   }
@@ -147,23 +201,30 @@ export function JobFilterBar({
   function clearFilters() {
     setSelectedStatuses(new Set());
     setQ('');
-    setSort('created_at');
-    setOrder('DESC');
+    setSort(initialSort);
+    setOrder(initialOrder);
     setSort2('');
     setOrder2('DESC');
     setSort3('');
     setOrder3('DESC');
     setIncludeTags(new Set());
     setExcludeTags(new Set());
+    setAgeDays('');
+    setQaFlaggedOnly(false);
+    if (onChange) {
+      onChange({ sort: initialSort, order: initialOrder });
+      return;
+    }
     router.push('/jobs');
   }
 
-  const hasFilters = selectedStatuses.size > 0 || q.trim() || sort !== 'created_at' || order !== 'DESC' || !!sort2 || !!sort3 || includeTags.size > 0 || excludeTags.size > 0;
+  const hasFilters = selectedStatuses.size > 0 || q.trim() || sort !== initialSort || order !== initialOrder || !!sort2 || !!sort3 || includeTags.size > 0 || excludeTags.size > 0 || !!ageDays || qaFlaggedOnly;
 
   return (
     <div className="bg-white border border-zinc-200 rounded-lg p-4">
       <div className="flex flex-wrap items-center gap-3">
         {/* Status multi-select dropdown */}
+        {!hideStatusFilter && (
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
@@ -206,6 +267,7 @@ export function JobFilterBar({
             </div>
           )}
         </div>
+        )}
 
         {/* Tag filter dropdown */}
         <div className="relative" ref={tagDropdownRef}>
@@ -260,6 +322,30 @@ export function JobFilterBar({
             </div>
           )}
         </div>
+
+        {/* Date range */}
+        <select
+          value={ageDays}
+          onChange={(e) => setAgeDays(e.target.value)}
+          className="border border-zinc-300 rounded-md px-3 py-1.5 text-sm bg-white text-zinc-900"
+        >
+          <option value="">All time</option>
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30">30 days</option>
+          <option value="60">60 days</option>
+        </select>
+
+        {/* QA flagged only */}
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none" title="Show only jobs flagged by the QA review agent">
+          <input
+            type="checkbox"
+            checked={qaFlaggedOnly}
+            onChange={(e) => setQaFlaggedOnly(e.target.checked)}
+            className="rounded border-zinc-300 text-red-600 focus:ring-red-500"
+          />
+          <span className="text-red-700">QA</span>
+        </label>
 
         {/* Search */}
         <input

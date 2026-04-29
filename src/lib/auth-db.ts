@@ -53,6 +53,29 @@ function initAuthSchema(db: Database.Database) {
     );
   `);
 
+  // Permission groups & usage tracking
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS permission_groups (
+      id INTEGER PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      description TEXT,
+      is_default INTEGER NOT NULL DEFAULT 0,
+      features TEXT NOT NULL DEFAULT '{}',
+      quotas TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS usage_tracking (
+      id INTEGER PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      dimension TEXT NOT NULL,
+      period TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, dimension, period)
+    );
+  `);
+
   // Safe migration: add columns if they don't exist (for existing databases)
   const columns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
   const columnNames = new Set(columns.map(c => c.name));
@@ -62,6 +85,24 @@ function initAuthSchema(db: Database.Database) {
   if (!columnNames.has('disabled')) {
     db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0");
   }
+  if (!columnNames.has('permission_group_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN permission_group_id INTEGER REFERENCES permission_groups(id)');
+  }
+
+  // Seed default permission group if none exist
+  const groupCount = (db.prepare('SELECT COUNT(*) as count FROM permission_groups').get() as { count: number }).count;
+  if (groupCount === 0) {
+    db.prepare(`
+      INSERT INTO permission_groups (name, description, is_default, features, quotas)
+      VALUES ('Default', 'Full access, no limits', 1, ?, ?)
+    `).run(
+      JSON.stringify({ can_import: true, can_export: true, can_eval: true, can_use_extension: true, can_manage_rules: true, can_import_rejections: true, can_research: true }),
+      JSON.stringify({ max_jobs: 0, max_eval_per_month: 0, max_import_per_day: 0 }),
+    );
+  }
+
+  // Assign existing users to default group if unassigned
+  db.exec('UPDATE users SET permission_group_id = (SELECT id FROM permission_groups WHERE is_default = 1) WHERE permission_group_id IS NULL');
 
   // Ensure first user is admin
   db.exec("UPDATE users SET role = 'admin' WHERE id = (SELECT MIN(id) FROM users) AND role = 'user'");
@@ -94,6 +135,7 @@ interface RawAuthUser {
   display_name: string | null;
   role: string;
   disabled: number;
+  permission_group_id: number | null;
   created_at: string;
   password_hash?: string;
 }
@@ -105,6 +147,7 @@ function toAuthUser(row: RawAuthUser): AuthUser {
     display_name: row.display_name,
     role: row.role as 'admin' | 'user',
     disabled: !!row.disabled,
+    permission_group_id: row.permission_group_id,
     created_at: row.created_at,
   };
 }
@@ -117,19 +160,21 @@ export interface AuthUser {
   display_name: string | null;
   role: 'admin' | 'user';
   disabled: boolean;
+  permission_group_id: number | null;
   created_at: string;
 }
 
-const AUTH_USER_COLS = 'id, email, display_name, role, disabled, created_at';
+const AUTH_USER_COLS = 'id, email, display_name, role, disabled, permission_group_id, created_at';
 
 export function createUser(email: string, password: string, displayName?: string): AuthUser {
   const db = getAuthDb();
   const passwordHash = hashPassword(password);
   const count = getUserCount();
   const role = count === 0 ? 'admin' : 'user';
+  const defaultGroupId = (db.prepare('SELECT id FROM permission_groups WHERE is_default = 1').get() as { id: number } | undefined)?.id ?? null;
   const result = db.prepare(
-    'INSERT INTO users (email, password_hash, display_name, role) VALUES (?, ?, ?, ?)'
-  ).run(email.toLowerCase().trim(), passwordHash, displayName?.trim() || null, role);
+    'INSERT INTO users (email, password_hash, display_name, role, permission_group_id) VALUES (?, ?, ?, ?, ?)'
+  ).run(email.toLowerCase().trim(), passwordHash, displayName?.trim() || null, role, defaultGroupId);
   const row = db.prepare(`SELECT ${AUTH_USER_COLS} FROM users WHERE id = ?`)
     .get(result.lastInsertRowid) as RawAuthUser;
   return toAuthUser(row);

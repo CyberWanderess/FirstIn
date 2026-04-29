@@ -1,43 +1,48 @@
 import type { JobWithCompany } from '@/types';
 
 /**
- * Get the fixed prompt for AI to scan email for rejection letters.
+ * Default template for the rejection-scan prompt.
+ * `{{days}}` is substituted at render time.
  */
-export function getRejectionScanPrompt(days: number): string {
-  return [
-    `Scan my inbox for all rejection emails received in the last ${days} days.`,
-    '',
-    'Common rejection indicators:',
-    '- "We regret to inform you..."',
-    '- "After careful consideration..."',
-    '- "We have decided to move forward with other candidates..."',
-    '- "Unfortunately, we will not be proceeding..."',
-    '- "Thank you for your interest, but..."',
-    '- "We appreciate your application, however..."',
-    '',
-    '**Return a JSON array**, one object per rejection:',
-    '```json',
-    '[',
-    '  {',
-    '    "company": "Example Corp",',
-    '    "title": "Software Engineer",',
-    '    "rejection_reason": "resume"',
-    '  }',
-    ']',
-    '```',
-    '',
-    '**Fields:**',
-    '- `company`: Company name from the rejection email (required)',
-    '- `title`: Job title rejected for (required, extract from email if possible, otherwise "Unknown")',
-    '- `rejection_reason`: Stage at which the rejection happened. Pick one:',
-    '  - `"resume"` — Resume screening rejection (most common, use if unsure)',
-    '  - `"hr_screen"` — Rejected after HR phone screen',
-    '  - `"hm_interview"` — Rejected after Hiring Manager interview',
-    '  - `"final_round"` — Rejected after final/onsite round',
-    '  - `"other"` — Other reason',
-    '',
-    'If no rejections found, return an empty array: `[]`',
-  ].join('\n');
+export const DEFAULT_REJECTION_SCAN_PROMPT = `Scan my inbox for all rejection emails received in the last {{days}} days.
+
+Common rejection indicators:
+- "We regret to inform you..."
+- "After careful consideration..."
+- "We have decided to move forward with other candidates..."
+- "Unfortunately, we will not be proceeding..."
+- "Thank you for your interest, but..."
+- "We appreciate your application, however..."
+
+**Return a JSON array**, one object per rejection:
+\`\`\`json
+[
+  {
+    "company": "Example Corp",
+    "title": "Software Engineer",
+    "rejection_reason": "resume"
+  }
+]
+\`\`\`
+
+**Fields:**
+- \`company\`: Company name from the rejection email (required)
+- \`title\`: Job title rejected for (required, extract from email if possible, otherwise "Unknown")
+- \`rejection_reason\`: Stage at which the rejection happened. Pick one:
+  - \`"resume"\` — Resume screening rejection (most common, use if unsure)
+  - \`"hr_screen"\` — Rejected after HR phone screen
+  - \`"hm_interview"\` — Rejected after Hiring Manager interview
+  - \`"final_round"\` — Rejected after final/onsite round
+  - \`"other"\` — Other reason
+
+If no rejections found, return an empty array: \`[]\``;
+
+/**
+ * Get the prompt for AI to scan email for rejection letters.
+ * Pass `template` to override the default (e.g. user-customized version from settings).
+ */
+export function getRejectionScanPrompt(days: number, template?: string): string {
+  return (template || DEFAULT_REJECTION_SCAN_PROMPT).replace(/\{\{days\}\}/g, String(days));
 }
 
 /**

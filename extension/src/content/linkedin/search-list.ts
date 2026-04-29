@@ -10,6 +10,52 @@ import type { JobPayload } from '../../shared/types';
 const BADGE_ATTR = 'data-firstin-badge';
 const TOOLBAR_ID = 'firstin-batch-toolbar';
 
+// Container selectors tried in order. Broader substring matches weather
+// LinkedIn's obfuscated class names better than exact matches.
+const CONTAINER_SELECTORS = [
+  '.jobs-search-results-list',
+  '.scaffold-layout__list-container',
+  '.scaffold-layout__list',
+  'ul[class*="jobs-search"]',
+  'div[class*="jobs-search-results"]',
+  '[role="list"]',
+];
+
+const THROTTLE_MS = 200;
+const POLL_MS = 2000;
+
+function debugEnabled(): boolean {
+  try { return localStorage.getItem('firstinDebug') === '1'; } catch { return false; }
+}
+function dlog(...args: unknown[]) {
+  if (debugEnabled()) console.log('[FirstIn]', ...args);
+}
+
+/**
+ * Leading-edge throttle with guaranteed trailing call.
+ * First call fires immediately. Subsequent calls within `wait` ms coalesce
+ * into a single trailing call. Guarantees at-least-every-wait cadence even
+ * under continuous input (unlike debounce, which resets on each call).
+ */
+function throttle<T extends (...args: unknown[]) => void>(fn: T, wait: number): T {
+  let lastCall = 0;
+  let trailingTimer: ReturnType<typeof setTimeout> | null = null;
+  return ((...args: Parameters<T>) => {
+    const now = performance.now();
+    const elapsed = now - lastCall;
+    if (elapsed >= wait) {
+      lastCall = now;
+      fn(...args);
+    } else if (trailingTimer === null) {
+      trailingTimer = setTimeout(() => {
+        lastCall = performance.now();
+        trailingTimer = null;
+        fn(...args);
+      }, wait - elapsed);
+    }
+  }) as T;
+}
+
 interface CardInfo {
   card: HTMLElement;
   title: string;
@@ -29,80 +75,235 @@ let enrichQueue = Promise.resolve();
 let enrichQueueSize = 0;
 let enrichQueueDone = 0;
 
+/** Prevents overlapping scans; pending flag triggers one more scan after current finishes. */
+let scanning = false;
+let scanPending = false;
+
 /**
  * Main entry: scan visible job cards, check status, inject badges + checkboxes.
+ *
+ * Invariant: a card must NEVER be left with `BADGE_ATTR='loading'` after this
+ * function returns. Subsequent scans filter by `!hasAttribute(BADGE_ATTR)`, so a
+ * stuck 'loading' card would be invisible to every future scan and stay
+ * undecorated forever. Any partial-result or error path must clean up stuck
+ * 'loading' attributes before returning.
  */
 export async function enhanceSearchList() {
   if (!isSearchPage()) return;
 
-  const cards = findJobCards();
-  if (cards.length === 0) return;
+  // Concurrency guard: if another scan is in flight, coalesce into a single
+  // follow-up run when it finishes. Without this, rapid throttled calls can
+  // interleave — card A gets marked 'loading' by scan 1, scan 2 starts and
+  // excludes A from its newCards, then scan 1's checkBatch response arrives
+  // but some cards in its newCards have since been removed from the DOM.
+  if (scanning) { scanPending = true; return; }
+  scanning = true;
 
-  const newCards = cards.filter(c => !c.card.hasAttribute(BADGE_ATTR));
-  if (newCards.length === 0) return;
+  let newCards: CardInfo[] = [];
+  try {
+    const cards = findJobCards();
+    if (cards.length === 0) return;
 
-  console.log(`[FirstIn] enhancing ${newCards.length} job cards`);
+    newCards = cards.filter(c => !c.card.hasAttribute(BADGE_ATTR));
+    if (newCards.length === 0) return;
 
-  for (const c of newCards) {
-    c.card.setAttribute(BADGE_ATTR, 'loading');
-  }
+    dlog(`enhanceSearchList: found ${cards.length}, new ${newCards.length}`);
+    console.log(`[FirstIn] enhancing ${newCards.length} job cards`);
 
-  const checkItems = newCards.map(c => ({
-    title: c.title,
-    company_name: c.company,
-    source: 'linkedin' as const,
-    source_id: c.sourceId || undefined,
-  }));
+    for (const c of newCards) {
+      c.card.setAttribute(BADGE_ATTR, 'loading');
+    }
 
-  const result = await checkBatch(checkItems);
+    const checkItems = newCards.map(c => ({
+      title: c.title,
+      company_name: c.company,
+      source: 'linkedin' as const,
+      source_id: c.sourceId || undefined,
+    }));
 
-  if (result.success && result.data?.results) {
-    for (const r of result.data.results) {
-      const card = newCards[r.index];
-      if (!card) continue;
+    const result = await checkBatch(checkItems);
 
-      if (r.exists) {
-        card.card.setAttribute(BADGE_ATTR, 'exists');
-        injectBadge(card.card, r.statusLabel || r.status || 'Saved', 'exists');
-      } else {
-        card.card.setAttribute(BADGE_ATTR, 'new');
-        injectBadge(card.card, 'New', 'new');
-        injectCheckbox(card.card);
+    if (result.success && result.data?.results) {
+      for (const r of result.data.results) {
+        const card = newCards[r.index];
+        if (!card) continue;
+
+        if (r.exists) {
+          card.card.setAttribute(BADGE_ATTR, 'exists');
+          injectBadge(card.card, r.statusLabel || r.status || 'Saved', 'exists');
+        } else {
+          card.card.setAttribute(BADGE_ATTR, 'new');
+          injectBadge(card.card, 'New', 'new');
+          injectCheckbox(card.card);
+        }
+      }
+    } else {
+      for (const c of newCards) {
+        c.card.setAttribute(BADGE_ATTR, 'unknown');
+        injectCheckbox(c.card);
       }
     }
-  } else {
+
+    updateToolbar();
+  } catch (e) {
+    console.warn('[FirstIn] enhanceSearchList error:', e);
+  } finally {
+    // Defensive cleanup: ANY card still at 'loading' after the scan (partial
+    // result, thrown exception, server-side .map skipping indices, etc.) must
+    // have its attribute cleared so the next scan retries it. Otherwise the
+    // card is invisible to future scans (see invariant above).
+    let stuck = 0;
     for (const c of newCards) {
-      c.card.setAttribute(BADGE_ATTR, 'unknown');
-      injectCheckbox(c.card);
+      if (c.card.getAttribute(BADGE_ATTR) === 'loading') {
+        c.card.removeAttribute(BADGE_ATTR);
+        stuck++;
+      }
+    }
+    if (stuck > 0) dlog(`enhanceSearchList: cleared ${stuck} stuck 'loading' card(s) for retry`);
+
+    scanning = false;
+    if (scanPending) {
+      scanPending = false;
+      // Schedule follow-up out of current microtask so we don't recurse synchronously.
+      setTimeout(() => enhanceSearchList(), 0);
     }
   }
+}
 
-  updateToolbar();
+/** Active observer + polling handle, kept for lifecycle management. */
+let activeObserver: MutationObserver | null = null;
+let pollHandle: ReturnType<typeof setInterval> | null = null;
+
+/** URLs where auto-scroll already ran this session (avoid repeat on same page). */
+const autoScrolledUrls = new Set<string>();
+
+/** Find the list container using the broadened selector list. */
+function findListContainer(): Element | null {
+  for (const sel of CONTAINER_SELECTORS) {
+    const el = document.querySelector(sel);
+    if (el) return el;
+  }
+  return null;
+}
+
+/**
+ * Auto-scroll the list container to the bottom to force LinkedIn's
+ * virtualization to render every card into the DOM, then restore the user's
+ * original scroll position. The observer + polling will catch newly rendered
+ * cards as they appear. Runs at most once per URL to avoid disrupting the
+ * user when they scroll intentionally.
+ *
+ * Bails out if the user has already scrolled away from the top before this
+ * runs — don't hijack an actively-reading user's viewport.
+ */
+async function autoScrollToRevealAll(): Promise<void> {
+  if (!isSearchPage()) return;
+  const key = window.location.href;
+  if (autoScrolledUrls.has(key)) return;
+  autoScrolledUrls.add(key);
+
+  // Small delay to let LinkedIn settle its initial render.
+  await new Promise((r) => setTimeout(r, 400));
+
+  const container = findScrollableList();
+  if (!container) {
+    dlog('autoScroll: no scrollable list container — skipping');
+    return;
+  }
+
+  const initial = container.scrollTop;
+  if (initial > 200) {
+    dlog(`autoScroll: user already scrolled (top=${initial}), skipping`);
+    return;
+  }
+
+  const stepPx = 800;
+  const stepMs = 300;
+  const maxSteps = 15; // hard cap — 15 * 800 = 12000px, plenty for 25-card LinkedIn pages
+  let prevTop = -1;
+  let stableCount = 0;
+
+  for (let i = 0; i < maxSteps; i++) {
+    container.scrollTop = container.scrollTop + stepPx;
+    await new Promise((r) => setTimeout(r, stepMs));
+    // If scrollTop hasn't advanced for 2 consecutive steps, we've hit the bottom.
+    if (container.scrollTop === prevTop) {
+      stableCount++;
+      if (stableCount >= 2) { dlog(`autoScroll: reached bottom at step ${i}`); break; }
+    } else {
+      stableCount = 0;
+    }
+    prevTop = container.scrollTop;
+  }
+
+  // Give the observer a beat to process the last round of cards, then restore.
+  await new Promise((r) => setTimeout(r, 300));
+  container.scrollTop = initial;
+  dlog('autoScroll: done, scroll restored');
+}
+
+/** Find a vertically-scrollable ancestor of the job list (list pane scrolls independently on LinkedIn). */
+function findScrollableList(): HTMLElement | null {
+  const list = findListContainer() as HTMLElement | null;
+  if (!list) return null;
+  // Walk up to find the nearest element with overflow-y:auto|scroll and real scroll range.
+  let el: HTMLElement | null = list;
+  for (let depth = 0; el && depth < 8; depth++, el = el.parentElement) {
+    const style = getComputedStyle(el);
+    const overflows = /auto|scroll/.test(style.overflowY);
+    if (overflows && el.scrollHeight > el.clientHeight + 10) return el;
+  }
+  // Fallback: the list itself (may not be the scrollable one, but harmless to try).
+  return list;
 }
 
 /**
  * Observe the job list for new cards (infinite scroll / pagination).
+ * Uses a 200ms leading-edge throttle with trailing call so continuous
+ * mutations during active scroll still get coalesced reactions
+ * (every ~200ms) rather than being starved by reset-on-mutation debounce.
  */
 export function observeSearchList() {
   if (!isSearchPage()) return;
 
-  const observer = new MutationObserver(() => {
-    enhanceSearchList();
-  });
+  // Tear down any prior observer/interval before setting up.
+  if (activeObserver) { activeObserver.disconnect(); activeObserver = null; }
+  if (pollHandle !== null) { clearInterval(pollHandle); pollHandle = null; }
 
-  const listContainer = document.querySelector(
-    '.jobs-search-results-list, .scaffold-layout__list-container, [role="list"]'
-  );
+  const throttledScan = throttle(() => enhanceSearchList(), THROTTLE_MS);
+
+  const listContainer = findListContainer();
   if (listContainer) {
-    observer.observe(listContainer, { childList: true, subtree: true });
+    dlog(`observeSearchList: matched container (${listContainer.tagName})`);
+    activeObserver = new MutationObserver(throttledScan);
+    activeObserver.observe(listContainer, { childList: true, subtree: true });
   } else {
-    let timer: ReturnType<typeof setTimeout>;
-    const bodyObserver = new MutationObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => enhanceSearchList(), 1000);
-    });
-    bodyObserver.observe(document.body, { childList: true, subtree: true });
+    dlog('observeSearchList: no container matched — body fallback');
+    activeObserver = new MutationObserver(throttledScan);
+    activeObserver.observe(document.body, { childList: true, subtree: true });
   }
+
+  // Polling safety net: catches anything the observer misses (e.g. virtualization
+  // via attribute-only mutation, or observer attached to a container that
+  // LinkedIn later detaches without URL change). 2s cadence, idle cost is a
+  // single querySelectorAll that short-circuits when nothing is new.
+  pollHandle = setInterval(() => {
+    if (!isSearchPage()) return;
+    dlog('poll tick');
+    enhanceSearchList();
+  }, POLL_MS);
+
+  // Kick off background auto-scroll so all virtualized cards get rendered
+  // without the user having to scroll manually. Fire-and-forget.
+  autoScrollToRevealAll().catch((e) => console.warn('[FirstIn] autoScroll failed:', e));
+}
+
+/**
+ * Re-attach the observer + polling after SPA navigation. Call this from the
+ * top-level navigation handler when the URL changes.
+ */
+export function reattachSearchList() {
+  observeSearchList();
 }
 
 function isSearchPage(): boolean {

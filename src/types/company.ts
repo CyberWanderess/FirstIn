@@ -24,6 +24,8 @@ export interface Company {
   info_status: CompanyInfoStatus;
   chinese_affinity: number | null;
   notes: string | null;
+  qa_flagged: number;
+  qa_notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,6 +51,8 @@ export interface CompanyInsert {
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;
+  qa_flagged?: number;
+  qa_notes?: string | null;
 }
 
 export interface CompanyUpdate {
@@ -67,4 +71,6 @@ export interface CompanyUpdate {
   chinese_affinity?: number | null;
   info_status?: CompanyInfoStatus;
   notes?: string | null;
+  qa_flagged?: number;
+  qa_notes?: string | null;
 }

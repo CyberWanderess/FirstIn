@@ -3,7 +3,7 @@ import { getSettingNumber } from '@/lib/repositories/settings-repository';
 import type { Job, JobInsert, JobUpdate, JobWithCompany } from '@/types';
 
 /** Statuses that are eligible for expiration (user hasn't taken action) */
-const EXPIRABLE_STATUSES = [
+export const EXPIRABLE_STATUSES = [
   'pending_eval', 'flagged', 'ready_to_apply', 'ready_to_apply_tailored', 'pending_deep_analysis',
 ];
 
@@ -18,7 +18,9 @@ function deserializeJob(row: Record<string, unknown>): JobWithCompany {
   if (row.score_tags) {
     try { score_tags = JSON.parse(row.score_tags as string); } catch { score_tags = null; }
   }
-  return { ...row, location, score_tags } as JobWithCompany;
+  const resume_tailored = row.resume_tailored === null || row.resume_tailored === undefined ? null : row.resume_tailored === 1;
+  const has_referral    = row.has_referral    === null || row.has_referral    === undefined ? null : row.has_referral    === 1;
+  return { ...row, location, score_tags, resume_tailored, has_referral } as JobWithCompany;
 }
 
 export function findJobById(id: number): JobWithCompany | null {
@@ -54,6 +56,12 @@ export function listJobs(options: {
   offset?: number;
   excludeExpired?: boolean;
   companyInfoStatus?: string;
+  maxAgeDays?: number;
+  scoreSuccessMin?: number;
+  scoreSuccessMax?: number;
+  excludeRechecked?: boolean;
+  createdAfter?: string;
+  qaFlaggedOnly?: boolean;
 }): { jobs: JobWithCompany[]; total: number } {
   const db = getDb();
   const conditions: string[] = [];
@@ -114,16 +122,34 @@ export function listJobs(options: {
     conditions.push('c.info_status = ?');
     params.push(options.companyInfoStatus);
   }
+  if (options.scoreSuccessMin != null) {
+    conditions.push('j.score_success >= ?');
+    params.push(options.scoreSuccessMin);
+  }
+  if (options.scoreSuccessMax != null) {
+    conditions.push('j.score_success <= ?');
+    params.push(options.scoreSuccessMax);
+  }
+  if (options.excludeRechecked) {
+    conditions.push(`j.id NOT IN (SELECT entity_id FROM auto_eval_log WHERE run_type = 'job_recheck' AND entity_id IS NOT NULL)`);
+  }
+  if (options.createdAfter) {
+    conditions.push('j.created_at >= ?');
+    params.push(options.createdAfter);
+  }
+  if (options.qaFlaggedOnly) {
+    conditions.push('j.qa_flagged = 1');
+  }
 
   // Expiry filter: exclude old jobs in inactive statuses
   if (options.excludeExpired !== false) {
-    const expiryDays = getSettingNumber('expiry_days', 30);
-    if (expiryDays > 0) {
+    const ageDays = options.maxAgeDays ?? getSettingNumber('expiry_days', 30);
+    if (ageDays > 0) {
       const placeholders = EXPIRABLE_STATUSES.map(() => '?').join(',');
       conditions.push(
-        `NOT (j.status IN (${placeholders}) AND COALESCE(j.posted_at, j.created_at) < datetime('now', '-' || ? || ' days'))`
+        `NOT (j.status IN (${placeholders}) AND j.created_at < datetime('now', '-' || ? || ' days'))`
       );
-      params.push(...EXPIRABLE_STATUSES, expiryDays);
+      params.push(...EXPIRABLE_STATUSES, ageDays);
     }
   }
 
@@ -134,7 +160,11 @@ export function listJobs(options: {
   `).get(...params) as { count: number }).count;
 
   const allowedSorts = ['created_at', 'updated_at', 'title', 'salary_max', 'score', 'score_success', 'status_changed_at', 'company_name'];
-  const resolveSortCol = (key: string) => key === 'company_name' ? 'c.display_name' : `j.${key}`;
+  const resolveSortCol = (key: string) => {
+    if (key === 'company_name') return 'c.display_name';
+    if (key === 'created_at') return 'DATE(j.created_at)';
+    return `j.${key}`;
+  };
   const resolveOrder = (o?: string) => o === 'ASC' ? 'ASC' : 'DESC';
 
   const sortKey = allowedSorts.includes(options.sort || '') ? options.sort! : 'created_at';
@@ -146,6 +176,7 @@ export function listJobs(options: {
   if (options.sort3 && allowedSorts.includes(options.sort3)) {
     orderByClauses.push(`${resolveSortCol(options.sort3)} ${resolveOrder(options.order3)}`);
   }
+  orderByClauses.push('j.id DESC');
 
   const orderByStr = orderByClauses.join(', ');
   const limit = options.limit ?? 50;
@@ -218,6 +249,36 @@ export function insertJob(data: JobInsert & { company_id: number }): Job {
   return job;
 }
 
+export function dismissDedupPair(jobAId: number, jobBId: number): void {
+  const [lo, hi] = jobAId < jobBId ? [jobAId, jobBId] : [jobBId, jobAId];
+  getDb().prepare(
+    `INSERT OR IGNORE INTO dedup_dismissals (job_id_lo, job_id_hi) VALUES (?, ?)`
+  ).run(lo, hi);
+}
+
+/**
+ * Load all jobs for a single company — used by dedup hot path (extension save)
+ * to run trigram/hash comparison on ≤O(jobs-per-company) rows instead of
+ * the full jobs table. Returns bare Job rows (no company JOIN).
+ */
+export function listJobsByCompanyId(companyId: number): Job[] {
+  const db = getDb();
+  const rows = db.prepare(
+    `SELECT * FROM jobs WHERE company_id = ?`
+  ).all(companyId) as Record<string, unknown>[];
+  return rows.map((row) => {
+    let location: string[];
+    try { location = JSON.parse(row.location as string || '[]'); } catch { location = []; }
+    let score_tags: string[] | null = null;
+    if (row.score_tags) {
+      try { score_tags = JSON.parse(row.score_tags as string); } catch { score_tags = null; }
+    }
+    const resume_tailored = row.resume_tailored === null || row.resume_tailored === undefined ? null : row.resume_tailored === 1;
+    const has_referral    = row.has_referral    === null || row.has_referral    === undefined ? null : row.has_referral    === 1;
+    return { ...row, location, score_tags, resume_tailored, has_referral } as Job;
+  });
+}
+
 /**
  * Add a source_id mapping for a job (e.g., when merging multi-location LinkedIn postings).
  * Uses INSERT OR IGNORE to skip if the (source, source_id) pair already exists.
@@ -257,6 +318,9 @@ export function updateJob(id: number, data: JobUpdate): Job | null {
       } else if (key === 'status') {
         fields.push('status = ?', `status_changed_at = datetime('now')`);
         params.push(value);
+      } else if (key === 'resume_tailored' || key === 'has_referral') {
+        fields.push(`${key} = ?`);
+        params.push(value === null ? null : (value ? 1 : 0));
       } else {
         fields.push(`${key} = ?`);
         params.push(value);

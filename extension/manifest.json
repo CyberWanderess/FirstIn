@@ -21,6 +21,21 @@
       "js": ["dist/content-linkedin.js"],
       "css": ["dist/content-linkedin.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.indeed.com/viewjob*",
+        "https://www.indeed.com/rc/clk*",
+        "https://www.indeed.com/jobs*",
+        "https://ca.indeed.com/viewjob*",
+        "https://ca.indeed.com/jobs*",
+        "https://uk.indeed.com/viewjob*",
+        "https://uk.indeed.com/jobs*",
+        "https://au.indeed.com/viewjob*",
+        "https://au.indeed.com/jobs*"
+      ],
+      "js": ["dist/content-indeed.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

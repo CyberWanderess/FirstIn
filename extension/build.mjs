@@ -9,10 +9,11 @@ const config = {
   sourcemap: true,
   outdir: 'dist',
   entryPoints: {
-    'background': 'src/background/service-worker.ts',
+    'background':       'src/background/service-worker.ts',
     'content-linkedin': 'src/content/linkedin/index.ts',
-    'popup': 'src/popup/popup.ts',
-    'options': 'src/options/options.ts',
+    'content-indeed':   'src/content/indeed/index.ts',
+    'popup':            'src/popup/popup.ts',
+    'options':          'src/options/options.ts',
   },
 };
 

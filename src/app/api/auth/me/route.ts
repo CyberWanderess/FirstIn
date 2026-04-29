@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/auth-db';
+import { getUserPermissions, getUserUsageSummary } from '@/lib/permissions';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get('session_token')?.value;
@@ -12,5 +13,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  return NextResponse.json({ user });
+  const perms = getUserPermissions(user.id);
+  const usage = getUserUsageSummary(user.id);
+
+  return NextResponse.json({
+    user,
+    permissions: {
+      group_name: perms.group?.name ?? null,
+      features: perms.features,
+      quotas: perms.quotas,
+      usage,
+    },
+  });
 }

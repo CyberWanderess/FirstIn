@@ -4,13 +4,21 @@ import { requireAuthPage } from '@/lib/auth';
 import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { findCompanyById } from '@/lib/repositories/company-repository';
-import { listJobs } from '@/lib/repositories/job-repository';
+import { listJobs, EXPIRABLE_STATUSES } from '@/lib/repositories/job-repository';
+import { getSettingNumber } from '@/lib/repositories/settings-repository';
 import { getEntityHistory } from '@/lib/repositories/operation-log-repository';
 import { StatusBadge } from '@/components/status-badge';
 import { StatusActions } from '@/components/status-actions';
 import { CompanyStrategyEditor } from './strategy-editor';
 import { TrimExcess } from './trim-excess';
-import type { JobStatus } from '@/types';
+import { SortControl } from './sort-control';
+import { ClearQAFlagBanner } from '@/app/jobs/[id]/clear-qa-flag-banner';
+import type { JobStatus, JobWithCompany } from '@/types';
+
+const ALLOWED_SORTS = new Set([
+  'created_at', 'updated_at', 'title', 'salary_max',
+  'score', 'score_success', 'status_changed_at',
+]);
 
 export const dynamic = 'force-dynamic';
 
@@ -42,18 +50,42 @@ function formatSalary(min: number | null, max: number | null): string {
 
 export default async function CompanyDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requireAuthPage();
   const { id } = await params;
+  const sp = await searchParams;
+
+  const sortRaw = typeof sp.sort === 'string' ? sp.sort : '';
+  const sort = ALLOWED_SORTS.has(sortRaw) ? sortRaw : 'created_at';
+  const orderRaw = typeof sp.order === 'string' ? sp.order.toUpperCase() : '';
+  const order: 'ASC' | 'DESC' = orderRaw === 'ASC' ? 'ASC' : 'DESC';
 
   return runWithUser(user.id, () => {
   ensureInitialized();
   const company = findCompanyById(parseInt(id));
   if (!company) notFound();
 
-  const { jobs } = listJobs({ companyId: company.id, limit: 100, offset: 0 });
+  // Show every job on the company page (no expiry filter). Cap at 2000 as a
+  // safety net — no real company should exceed this; if one does, paginate later.
+  const { jobs } = listJobs({
+    companyId: company.id,
+    limit: 2000,
+    offset: 0,
+    excludeExpired: false,
+    sort,
+    order,
+  });
+
+  const expiryDays = getSettingNumber('expiry_days', 30);
+  const expiryCutoffMs = Date.now() - expiryDays * 86_400_000;
+  const isExpired = (job: JobWithCompany): boolean =>
+    EXPIRABLE_STATUSES.includes(job.status)
+      && new Date(job.created_at).getTime() < expiryCutoffMs;
+
   const history = getEntityHistory('company', company.id, 50);
 
   return (
@@ -62,6 +94,11 @@ export default async function CompanyDetailPage({
       <Link href="/companies" className="text-sm text-zinc-500 hover:text-zinc-700">
         &larr; Back to Companies
       </Link>
+
+      {/* QA flag banner */}
+      {company.qa_flagged === 1 && (
+        <ClearQAFlagBanner companyId={company.id} notes={company.qa_notes} />
+      )}
 
       {/* Header */}
       <div className="bg-white border border-zinc-200 rounded-lg p-6">
@@ -136,24 +173,27 @@ export default async function CompanyDetailPage({
 
       {/* Jobs table */}
       <div className="bg-white border border-zinc-200 rounded-lg">
-        <div className="px-6 py-3 border-b border-zinc-200 flex items-center justify-between">
+        <div className="px-6 py-3 border-b border-zinc-200 flex items-center justify-between gap-4 flex-wrap">
           <h2 className="font-semibold text-zinc-900">
             Jobs ({jobs.length})
           </h2>
-          {company.application_limit != null && company.application_limit > 0 && (
-            <TrimExcess
-              companyId={company.id}
-              applicationLimit={company.application_limit}
-              limitPeriodMonths={company.limit_period_months}
-              jobs={jobs.map(j => ({
-                id: j.id,
-                title: j.title,
-                status: j.status,
-                score_success: j.score_success ?? null,
-                score: j.score,
-              }))}
-            />
-          )}
+          <div className="flex items-center gap-4 flex-wrap">
+            <SortControl sort={sort} order={order} />
+            {company.application_limit != null && company.application_limit > 0 && (
+              <TrimExcess
+                companyId={company.id}
+                applicationLimit={company.application_limit}
+                limitPeriodMonths={company.limit_period_months}
+                jobs={jobs.map(j => ({
+                  id: j.id,
+                  title: j.title,
+                  status: j.status,
+                  score_success: j.score_success ?? null,
+                  score: j.score,
+                }))}
+              />
+            )}
+          </div>
         </div>
         {jobs.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-zinc-400">
@@ -183,6 +223,14 @@ export default async function CompanyDetailPage({
                   </td>
                   <td className="px-4 py-2.5">
                     <StatusBadge status={job.status} />
+                    {isExpired(job) && (
+                      <span
+                        className="ml-1.5 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-600 align-middle"
+                        title={`Active pipeline status older than ${expiryDays} days`}
+                      >
+                        Expired
+                      </span>
+                    )}
                     <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="compact" />
                   </td>
                   <td className="px-4 py-2.5 text-zinc-600">

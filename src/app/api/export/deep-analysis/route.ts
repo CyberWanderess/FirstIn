@@ -1,11 +1,16 @@
 import { withAuth } from '@/lib/route-handler';
+import { userContext } from '@/lib/db';
+import { checkFeature } from '@/lib/permissions';
 import { listJobs, findJobById } from '@/lib/repositories/job-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { exportJobsForDeepAnalysis } from '@/lib/export/deep-analysis-exporter';
-import { jsonResponse } from '@/lib/api-utils';
+import { resolvePrompt } from '@/lib/export/prompt-registry';
+import { jsonResponse, errorResponse } from '@/lib/api-utils';
 import type { JobWithCompany } from '@/types';
 
 export const GET = withAuth(async (req) => {
+  const userId = userContext.getStore()!.userId;
+  if (!checkFeature(userId, 'can_eval')) return errorResponse('AI evaluation not available for your plan', 403);
   const url = req.nextUrl;
   const format = (url.searchParams.get('format') || 'markdown') as 'markdown' | 'json';
   const idsParam = url.searchParams.get('ids');
@@ -22,6 +27,8 @@ export const GET = withAuth(async (req) => {
   }
 
   const resumeText = getSetting('resume_text', '');
-  const text = exportJobsForDeepAnalysis(jobs, format, resumeText || undefined);
+  const text = exportJobsForDeepAnalysis(jobs, format, resumeText || undefined, {
+    instructions: resolvePrompt('deep_analysis.instructions'),
+  });
   return jsonResponse({ text, jobCount: jobs.length });
 });

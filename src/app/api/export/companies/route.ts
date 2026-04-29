@@ -1,6 +1,7 @@
 import { withAuth } from '@/lib/route-handler';
 import { listCompanies } from '@/lib/repositories/company-repository';
 import { exportCompaniesForResearch } from '@/lib/export/company-exporter';
+import { resolvePrompt } from '@/lib/export/prompt-registry';
 import { jsonResponse } from '@/lib/api-utils';
 
 export const GET = withAuth(async (req) => {
@@ -15,7 +16,9 @@ export const GET = withAuth(async (req) => {
     ? companies.filter((c) => idsParam.split(',').map(Number).includes(c.id))
     : companies;
 
-  const text = exportCompaniesForResearch(filtered, format);
+  const text = exportCompaniesForResearch(filtered, format, {
+    instructions: resolvePrompt('company.instructions'),
+  });
 
   return jsonResponse({ text, companyCount: filtered.length });
 });

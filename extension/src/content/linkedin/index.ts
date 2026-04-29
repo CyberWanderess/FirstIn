@@ -1,7 +1,7 @@
 import { extractJobFromDetail } from './extractor';
 import { saveJob, checkJob } from '../../shared/api-client';
 import { getConfig, isConfigured } from '../../shared/storage';
-import { enhanceSearchList, observeSearchList } from './search-list';
+import { enhanceSearchList, observeSearchList, reattachSearchList } from './search-list';
 import type { JobPayload } from '../../shared/types';
 
 const BUTTON_ID = 'firstin-save-btn';
@@ -206,6 +206,9 @@ function observeNavigation() {
       lastUrl = window.location.href;
       currentUrl = ''; // Reset to trigger re-extraction
       handlePage();
+      // Re-attach observer + polling: the previous list container may have been
+      // replaced by LinkedIn's SPA router, leaving the old observer detached.
+      reattachSearchList();
       enhanceSearchList();
     }
   });

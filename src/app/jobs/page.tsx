@@ -63,7 +63,10 @@ export default async function JobsPage({
 
   const tags = params.tags || undefined;
   const excludeTags = params.exclude_tags || undefined;
-  const showExpired = params.expired === 'show';
+  const ageParam = params.age ?? '7';
+  const showAll = ageParam === 'all';
+  const maxAgeDays = showAll ? undefined : (parseInt(ageParam) || 7);
+  const qaFlaggedOnly = params.qaFlagged === '1';
   const { jobs, total } = listJobs({
     status, q, sort, order,
     sort2: sort2 || undefined,
@@ -72,7 +75,9 @@ export default async function JobsPage({
     order3: order3 || undefined,
     tags,
     excludeTags,
-    excludeExpired: !showExpired,
+    excludeExpired: !showAll,
+    maxAgeDays,
+    qaFlaggedOnly,
     limit, offset,
   });
   const totalPages = Math.ceil(total / limit);
@@ -87,6 +92,7 @@ export default async function JobsPage({
     if (sort2 && order2 !== 'DESC') base.order2 = order2;
     if (sort3) base.sort3 = sort3;
     if (sort3 && order3 !== 'DESC') base.order3 = order3;
+    if (ageParam !== '7') base.age = ageParam;
     const merged = { ...base, ...overrides };
     // Remove empty values
     for (const [k, v] of Object.entries(merged)) {
@@ -95,6 +101,13 @@ export default async function JobsPage({
     const qs = new URLSearchParams(merged).toString();
     return `/jobs${qs ? `?${qs}` : ''}`;
   }
+
+  const AGE_OPTIONS = [
+    { label: '7d', value: '7' },
+    { label: '14d', value: '14' },
+    { label: '30d', value: '30' },
+    { label: 'All', value: 'all' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -110,6 +123,7 @@ export default async function JobsPage({
         initialOrder3={order3}
         initialTags={tags}
         initialExcludeTags={excludeTags}
+        initialQaFlaggedOnly={qaFlaggedOnly}
       />
 
       {/* Results count */}
@@ -121,16 +135,21 @@ export default async function JobsPage({
         </div>
         <div className="flex items-center gap-2">
           <DedupPanel />
-          <Link
-            href={buildUrl(showExpired ? { expired: '' } : { expired: 'show' })}
-            className={`text-xs px-2 py-1 rounded border transition-colors ${
-              showExpired
-                ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
-                : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'
-            }`}
-          >
-            {showExpired ? 'Hide Expired' : 'Show Expired'}
-          </Link>
+          <div className="flex items-center rounded border border-zinc-200 overflow-hidden text-xs">
+            {AGE_OPTIONS.map((opt) => (
+              <Link
+                key={opt.value}
+                href={buildUrl({ age: opt.value === '7' ? '' : opt.value })}
+                className={`px-2.5 py-1 transition-colors ${
+                  ageParam === opt.value
+                    ? 'bg-blue-600 text-white'
+                    : 'text-zinc-500 hover:bg-zinc-50'
+                }`}
+              >
+                {opt.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -234,11 +253,23 @@ export default async function JobsPage({
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-1.5">
                     <StatusBadge status={job.status} />
+                    {job.qa_flagged === 1 && (
+                      <span
+                        title={job.qa_notes ?? 'QA agent flagged this evaluation'}
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700 border border-red-300 shrink-0"
+                      >QA</span>
+                    )}
                     {job.visa_sponsorship === 'no' && (
                       <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-red-100 text-red-700 shrink-0">No Visa</span>
                     )}
                     {job.visa_sponsorship === 'yes' && (
                       <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-green-100 text-green-700 shrink-0">Visa OK</span>
+                    )}
+                    {job.resume_tailored && (
+                      <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-indigo-100 text-indigo-700 shrink-0">Tailored</span>
+                    )}
+                    {job.has_referral && (
+                      <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-amber-100 text-amber-700 shrink-0">内推</span>
                     )}
                   </div>
                   <StatusActions jobId={job.id} currentStatus={job.status as JobStatus} variant="compact" />

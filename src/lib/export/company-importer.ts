@@ -107,22 +107,44 @@ export function applyCompanyResearch(items: CompanyResearchItem[]): { updated: n
       }
 
       // Handle H1B sponsorship
-      if (item.sponsors_h1b === false) {
-        updateData.application_strategy = 'no_h1b';
-        updateData.strategy_reason = 'Does not sponsor H1B';
+      // Guard: do NOT auto-lock funded startups (Seed / Series A-D / Late Stage) into 'no_h1b' even if
+      // sponsors_h1b===false. Funded startups frequently have legitimate sponsorship capacity but no
+      // public H1B filing history yet, and a false negative auto-locks the candidate out of real
+      // opportunities. For these, log the signal but leave application_strategy as-is for manual review.
+      const fundingRound = (item.funding_round ?? company.funding_round ?? '').trim();
+      const isFundedStartup = /^(Seed|Series [A-D]|Late Stage)$/i.test(fundingRound);
 
-        logOperation({
-          operation: 'company_update',
-          entity_type: 'company',
-          entity_id: company.id,
-          trigger: 'import',
-          details: {
-            field: 'application_strategy',
-            from: company.application_strategy,
-            to: 'no_h1b',
-            reason: 'Company research: does not sponsor H1B',
-          },
-        });
+      if (item.sponsors_h1b === false) {
+        if (isFundedStartup) {
+          logOperation({
+            operation: 'company_update',
+            entity_type: 'company',
+            entity_id: company.id,
+            trigger: 'import',
+            details: {
+              field: 'application_strategy',
+              from: company.application_strategy,
+              to: company.application_strategy,
+              reason: `Skipped auto-lock to no_h1b: funded startup (${fundingRound}) — manual review required`,
+            },
+          });
+        } else {
+          updateData.application_strategy = 'no_h1b';
+          updateData.strategy_reason = 'Does not sponsor H1B';
+
+          logOperation({
+            operation: 'company_update',
+            entity_type: 'company',
+            entity_id: company.id,
+            trigger: 'import',
+            details: {
+              field: 'application_strategy',
+              from: company.application_strategy,
+              to: 'no_h1b',
+              reason: 'Company research: does not sponsor H1B',
+            },
+          });
+        }
       }
 
       updateCompany(company.id, updateData);

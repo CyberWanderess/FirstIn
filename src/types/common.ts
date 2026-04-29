@@ -24,7 +24,8 @@ export type OperationType =
   | 'company_merge'
   | 'score_update'
   | 'visa_scan'
-  | 'merge';
+  | 'merge'
+  | 'clear_qa_flag';
 
 export type OperationEntityType = 'job' | 'company' | 'batch';
 

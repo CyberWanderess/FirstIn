@@ -1,11 +1,15 @@
 import { withAuth } from '@/lib/route-handler';
+import { userContext } from '@/lib/db';
+import { checkFeature } from '@/lib/permissions';
 import { listJobs, findJobById } from '@/lib/repositories/job-repository';
 import { exportJobsForEvaluation } from '@/lib/export/evaluation-exporter';
-import { getSetting } from '@/lib/repositories/settings-repository';
-import { jsonResponse } from '@/lib/api-utils';
+import { resolvePrompt } from '@/lib/export/prompt-registry';
+import { jsonResponse, errorResponse } from '@/lib/api-utils';
 import type { JobWithCompany } from '@/types';
 
 export const GET = withAuth(async (req) => {
+  const userId = userContext.getStore()!.userId;
+  if (!checkFeature(userId, 'can_eval')) return errorResponse('AI evaluation not available for your plan', 403);
   const url = req.nextUrl;
   const status = url.searchParams.get('status') || 'pending_eval';
   const format = (url.searchParams.get('format') || 'markdown') as 'markdown' | 'json';
@@ -23,9 +27,9 @@ export const GET = withAuth(async (req) => {
   }
 
   const config = {
-    scoringGuidance: getSetting('eval_scoring_guidance', '') || undefined,
-    calibrationExamples: getSetting('eval_calibration_examples', '') || undefined,
-    scoreTags: getSetting('eval_score_tags', '') || undefined,
+    scoringGuidance: resolvePrompt('eval.scoring_guidance'),
+    calibrationExamples: resolvePrompt('eval.calibration'),
+    scoreTags: resolvePrompt('eval.score_tags'),
   };
   const text = exportJobsForEvaluation(jobs, format, config);
   return jsonResponse({ text, jobCount: jobs.length });

@@ -1,9 +1,39 @@
 import type { JobWithCompany } from '@/types';
 
+/**
+ * Default instruction block for the deep-analysis prompt (everything between
+ * the resume and the job list). Users can override via settings.
+ */
+export const DEFAULT_DEEP_ANALYSIS_INSTRUCTIONS = `## Instructions
+For each job below, perform a deep analysis comparing the candidate's resume against the JD.
+Return a JSON array:
+\`\`\`json
+[{
+  "id": 42,
+  "strengths": ["Strength 1", "Strength 2"],
+  "concerns": ["Concern 1", "Concern 2"],
+  "jd_mapping": {"requirement from JD": "how candidate matches or gaps", ...},
+  "recommendation": "proceed|skip",
+  "analysis_summary": "1-2 sentence overall assessment"
+}]
+\`\`\`
+
+Fields:
+- **strengths**: Key reasons the candidate is a good fit for this role
+- **concerns**: Gaps, risks, or areas where the candidate may fall short
+- **jd_mapping**: Map each key JD requirement to the candidate's relevant experience or gap
+- **recommendation**: "proceed" to move forward with tailored application, "mass_apply" for volume/practice applications, "skip" to archive
+- **analysis_summary**: Brief overall assessment of fit`;
+
+export interface DeepAnalysisPromptConfig {
+  instructions?: string;
+}
+
 export function exportJobsForDeepAnalysis(
   jobs: JobWithCompany[],
   format: 'markdown' | 'json',
   resumeText?: string,
+  config?: DeepAnalysisPromptConfig,
 ): string {
   if (format === 'json') {
     return JSON.stringify(jobs.map((j) => ({
@@ -34,31 +64,8 @@ export function exportJobsForDeepAnalysis(
     lines.push('');
   }
 
-  lines.push(
-    '## Instructions',
-    'For each job below, perform a deep analysis comparing the candidate\'s resume against the JD.',
-    'Return a JSON array:',
-    '```json',
-    '[{',
-    '  "id": 42,',
-    '  "strengths": ["Strength 1", "Strength 2"],',
-    '  "concerns": ["Concern 1", "Concern 2"],',
-    '  "jd_mapping": {"requirement from JD": "how candidate matches or gaps", ...},',
-    '  "recommendation": "proceed|skip",',
-    '  "analysis_summary": "1-2 sentence overall assessment"',
-    '}]',
-    '```',
-    '',
-    'Fields:',
-    '- **strengths**: Key reasons the candidate is a good fit for this role',
-    '- **concerns**: Gaps, risks, or areas where the candidate may fall short',
-    '- **jd_mapping**: Map each key JD requirement to the candidate\'s relevant experience or gap',
-    '- **recommendation**: "proceed" to move forward with tailored application, "mass_apply" for volume/practice applications, "skip" to archive',
-    '- **analysis_summary**: Brief overall assessment of fit',
-    '',
-    '---',
-    '',
-  );
+  lines.push(...(config?.instructions || DEFAULT_DEEP_ANALYSIS_INSTRUCTIONS).split('\n'));
+  lines.push('', '---', '');
 
   for (const job of jobs) {
     lines.push(`### Job #${job.id}: ${job.title} @ ${job.company_display_name}`);

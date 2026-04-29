@@ -7,6 +7,7 @@ import { countJobsByStatus } from '@/lib/repositories/job-repository';
 import { getRecentOperations } from '@/lib/repositories/operation-log-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { CrawlTrigger } from '@/components/crawl-trigger';
+import { DailyStatsChart } from './daily-stats-chart';
 import { StatusBadge } from '@/components/status-badge';
 import { STATUS_LABELS } from '@/types';
 import type { OperationLog } from '@/types';
@@ -90,6 +91,9 @@ export default async function DashboardPage() {
           {config.enableCrawler && <CrawlTrigger />}
         </div>
       </div>
+
+      {/* Daily activity chart */}
+      <DailyStatsChart />
 
       {/* Status cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">

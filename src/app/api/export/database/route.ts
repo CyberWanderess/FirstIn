@@ -1,11 +1,16 @@
 import { readFileSync, unlinkSync } from 'fs';
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/route-handler';
-import { getDb } from '@/lib/db';
+import { getDb, userContext } from '@/lib/db';
+import { checkFeature } from '@/lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
 export const GET = withAuth(async () => {
+  const userId = userContext.getStore()!.userId;
+  if (!checkFeature(userId, 'can_export')) {
+    return NextResponse.json({ error: 'Export not available for your plan' }, { status: 403 });
+  }
   const tmpPath = `/tmp/jobhq-export-${Date.now()}.db`;
   try {
     // VACUUM INTO creates a consistent snapshot even with WAL mode

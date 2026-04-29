@@ -5,7 +5,7 @@ const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   flagged:                ['pending_deep_analysis', 'ready_to_apply', 'archived_low_match', 'archived_manual'],
   pending_deep_analysis:  ['ready_to_apply_tailored', 'applied', 'archived_manual'],
   ready_to_apply_tailored: ['applied', 'archived_low_match', 'archived_manual'],
-  ready_to_apply:         ['applied', 'archived_manual'],
+  ready_to_apply:         ['pending_deep_analysis', 'applied', 'archived_low_match', 'archived_manual'],
   applied:                ['interviewing', 'rejected_resume', 'archived_no_response', 'archived_manual'],
   interviewing:           ['offer', 'rejected_resume'],
   offer:                  [],

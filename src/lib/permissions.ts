@@ -4,6 +4,7 @@
  */
 
 import { getAuthDb, findUserById } from './auth-db';
+import { getDb, userContext } from './db';
 import type { AuthUser } from './auth-db';
 
 // --- Types & Constants ---
@@ -256,30 +257,51 @@ export function incrementUsage(userId: number, dimension: QuotaDimension): void 
 
 // --- Usage helpers ---
 
+const usageCache = new Map<string, { value: number; expiresAt: number }>();
+const USAGE_TTL_MS = 5_000;
+
 function getCurrentUsage(userId: number, dimension: QuotaDimension): number {
+  const cacheKey = `${userId}:${dimension}`;
+  const now = Date.now();
+  const cached = usageCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.value;
+
+  let value: number;
   if (dimension === 'max_jobs') {
-    return getJobCount(userId);
+    value = getJobCount(userId);
+  } else {
+    const db = getAuthDb();
+    const period = getUsagePeriod(dimension);
+    const row = db.prepare(
+      'SELECT count FROM usage_tracking WHERE user_id = ? AND dimension = ? AND period = ?'
+    ).get(userId, dimension, period) as { count: number } | undefined;
+    value = row?.count ?? 0;
   }
 
-  const db = getAuthDb();
-  const period = getUsagePeriod(dimension);
-  const row = db.prepare(
-    'SELECT count FROM usage_tracking WHERE user_id = ? AND dimension = ? AND period = ?'
-  ).get(userId, dimension, period) as { count: number } | undefined;
-  return row?.count ?? 0;
+  usageCache.set(cacheKey, { value, expiresAt: now + USAGE_TTL_MS });
+  return value;
 }
 
 function getJobCount(userId: number): number {
-  // Job count is in the per-user DB, but we access it via auth.db context
-  // For simplicity, we count from the user's DB file directly
   try {
+    const ctx = userContext.getStore();
+    if (ctx && ctx.userId === userId) {
+      const db = getDb();
+      const row = db.prepare('SELECT COUNT(*) AS count FROM jobs').get() as { count: number };
+      return row.count;
+    }
+    // Called outside the user's request context (e.g. admin endpoints inspecting another user)
+    // — fall back to opening the per-user DB file directly.
     const Database = require('better-sqlite3');
     const { resolve } = require('path');
-    const dbPath = resolve(process.env.DATA_DIR || './data', `user_${userId}.db`);
+    const dbPath = resolve(process.env.DATA_DIR || './data', `user-${userId}.db`);
     const userDb = new Database(dbPath, { readonly: true });
-    const result = userDb.prepare('SELECT COUNT(*) as count FROM jobs').get() as { count: number };
-    userDb.close();
-    return result.count;
+    try {
+      const row = userDb.prepare('SELECT COUNT(*) AS count FROM jobs').get() as { count: number };
+      return row.count;
+    } finally {
+      userDb.close();
+    }
   } catch {
     return 0; // DB doesn't exist yet
   }

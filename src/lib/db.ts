@@ -50,7 +50,8 @@ export function getDb(): Database.Database {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
+  db.pragma('busy_timeout = 30000');
+  db.pragma('wal_autocheckpoint = 1000');
 
   dbCache.set(userId, db);
   return db;

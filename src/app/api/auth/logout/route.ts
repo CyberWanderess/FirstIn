@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const response = NextResponse.json({ success: true });
   response.cookies.set('session_token', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:',
     sameSite: 'lax',
     path: '/',
     maxAge: 0,

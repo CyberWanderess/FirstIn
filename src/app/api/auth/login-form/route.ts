@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   const response = redirectTo(safePath, req);
   response.cookies.set('session_token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:',
     sameSite: 'lax',
     path: '/',
     maxAge: 30 * 24 * 60 * 60,

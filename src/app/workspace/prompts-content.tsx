@@ -104,8 +104,8 @@ export function PromptsTab() {
     });
   }
 
-  if (loading) return <div className="text-sm text-zinc-400">Loading prompts…</div>;
-  if (error) return <div className="text-sm text-rose-400">Error: {error}</div>;
+  if (loading) return <div className="text-sm text-zinc-500">Loading prompts…</div>;
+  if (error) return <div className="text-sm text-rose-600">Error: {error}</div>;
 
   const byGroup: Record<string, PromptListItem[]> = {};
   for (const it of items) {
@@ -114,9 +114,9 @@ export function PromptsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
-        <p className="font-medium text-zinc-100">How this works</p>
-        <p className="mt-1 text-zinc-400">
+      <div className="rounded border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700">
+        <p className="font-medium text-zinc-900">How this works</p>
+        <p className="mt-1 text-zinc-600">
           Each prompt below is the editable template used when you export to clipboard.
           Copy a prompt out, tweak it in an external LLM, paste it back, and Save.
           Every Save creates a new version — use History to restore or delete old versions.
@@ -126,7 +126,7 @@ export function PromptsTab() {
 
       {GROUP_ORDER.filter((g) => byGroup[g]?.length).map((group) => (
         <section key={group} className="space-y-2">
-          <h2 className="text-sm font-semibold text-zinc-300">{GROUP_LABEL[group]}</h2>
+          <h2 className="text-sm font-semibold text-zinc-700">{GROUP_LABEL[group]}</h2>
           <div className="space-y-2">
             {byGroup[group].map((item) => (
               <PromptCard
@@ -290,39 +290,39 @@ function PromptCard({ item, expanded, onToggle, onChanged }: CardProps) {
   }
 
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-900/40">
+    <div className="rounded border border-zinc-200 bg-white">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-900/60"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-zinc-50"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-zinc-100">{item.title}</span>
+            <span className="font-medium text-zinc-900">{item.title}</span>
             {item.isCustomized && (
-              <span className="rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
                 Customized
               </span>
             )}
             {item.placeholders.length > 0 && (
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600">
                 placeholders: {item.placeholders.map((p) => `{{${p}}}`).join(', ')}
               </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-zinc-400">{item.description}</p>
+          <p className="mt-0.5 truncate text-xs text-zinc-500">{item.description}</p>
         </div>
-        <span className="text-zinc-500">{expanded ? '▾' : '▸'}</span>
+        <span className="text-zinc-400">{expanded ? '▾' : '▸'}</span>
       </button>
 
       {expanded && (
-        <div className="space-y-3 border-t border-zinc-800 px-4 py-3">
+        <div className="space-y-3 border-t border-zinc-200 px-4 py-3">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={Math.min(24, Math.max(8, text.split('\n').length + 1))}
             spellCheck={false}
-            className="w-full rounded border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-xs text-zinc-100 focus:border-zinc-500 focus:outline-none"
+            className="w-full rounded border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-zinc-900 focus:border-zinc-500 focus:outline-none"
           />
 
           <div className="flex flex-wrap items-center gap-2">
@@ -330,43 +330,43 @@ function PromptCard({ item, expanded, onToggle, onChanged }: CardProps) {
               type="button"
               disabled={busy !== null}
               onClick={handleCopy}
-              className="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
             >Copy</button>
             <button
               type="button"
               disabled={busy !== null}
               onClick={handlePaste}
-              className="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
             >Paste</button>
             <input
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Label (optional, e.g. 'Tightened H1B rules')"
-              className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200"
+              className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 placeholder:text-zinc-400"
             />
             <button
               type="button"
               disabled={busy !== null || !dirty}
               onClick={handleSave}
-              className="rounded border border-emerald-700 bg-emerald-800/60 px-3 py-1.5 text-xs text-emerald-100 hover:bg-emerald-700 disabled:opacity-40"
+              className="rounded border border-emerald-700 bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-40"
             >{dirty ? 'Save new version' : 'Saved'}</button>
             <button
               type="button"
               disabled={busy !== null}
               onClick={handleReset}
-              className="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 disabled:opacity-50"
+              className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
               title={item.isCustomized ? 'Delete all saved versions and revert to built-in default' : 'Put built-in default into the editor'}
             >Reset to default</button>
             <button
               type="button"
               onClick={handleToggleHistory}
-              className="rounded border border-zinc-700 bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700"
+              className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
             >{showHistory ? 'Hide history' : 'History'}</button>
           </div>
 
           {(msg || err) && (
-            <div className={`text-xs ${err ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <div className={`text-xs ${err ? 'text-rose-600' : 'text-emerald-600'}`}>
               {err || msg}
             </div>
           )}
@@ -397,13 +397,13 @@ interface HistoryListProps {
 function HistoryList({ versions, onRestore, onDelete, busy }: HistoryListProps) {
   if (versions == null) return <div className="text-xs text-zinc-500">Loading history…</div>;
   if (versions.length === 0) {
-    return <div className="rounded border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-500">No saved versions yet. The built-in default is in use.</div>;
+    return <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500">No saved versions yet. The built-in default is in use.</div>;
   }
 
   return (
-    <div className="overflow-hidden rounded border border-zinc-800">
+    <div className="overflow-hidden rounded border border-zinc-200">
       <table className="w-full text-xs">
-        <thead className="bg-zinc-900/80 text-zinc-400">
+        <thead className="bg-zinc-100 text-zinc-600">
           <tr>
             <th className="px-2 py-1.5 text-left font-medium">ID</th>
             <th className="px-2 py-1.5 text-left font-medium">Saved</th>
@@ -414,13 +414,13 @@ function HistoryList({ versions, onRestore, onDelete, busy }: HistoryListProps) 
         </thead>
         <tbody>
           {versions.map((v, i) => (
-            <tr key={v.id} className="border-t border-zinc-800">
-              <td className="px-2 py-1.5 font-mono text-zinc-300">
+            <tr key={v.id} className="border-t border-zinc-200">
+              <td className="px-2 py-1.5 font-mono text-zinc-700">
                 v{v.id}
-                {i === 0 && <span className="ml-1 rounded bg-emerald-900/50 px-1 py-0.5 text-[9px] text-emerald-300">ACTIVE</span>}
+                {i === 0 && <span className="ml-1 rounded bg-emerald-100 px-1 py-0.5 text-[9px] font-medium text-emerald-800">ACTIVE</span>}
               </td>
-              <td className="px-2 py-1.5 text-zinc-400">{new Date(v.created_at + 'Z').toLocaleString()}</td>
-              <td className="px-2 py-1.5 text-zinc-300">{v.label || <span className="text-zinc-600">—</span>}</td>
+              <td className="px-2 py-1.5 text-zinc-500">{new Date(v.created_at + 'Z').toLocaleString()}</td>
+              <td className="px-2 py-1.5 text-zinc-700">{v.label || <span className="text-zinc-400">—</span>}</td>
               <td className="px-2 py-1.5 text-zinc-500">{v.value.length.toLocaleString()} chars</td>
               <td className="px-2 py-1.5 text-right">
                 {i !== 0 && (
@@ -428,14 +428,14 @@ function HistoryList({ versions, onRestore, onDelete, busy }: HistoryListProps) 
                     type="button"
                     disabled={busy}
                     onClick={() => onRestore(v)}
-                    className="mr-2 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[11px] text-zinc-200 hover:bg-zinc-700 disabled:opacity-50"
+                    className="mr-2 rounded border border-zinc-300 bg-white px-2 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
                   >Restore</button>
                 )}
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => onDelete(v)}
-                  className="rounded border border-rose-900 bg-rose-950/50 px-2 py-0.5 text-[11px] text-rose-300 hover:bg-rose-900 disabled:opacity-50"
+                  className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700 hover:bg-rose-100 disabled:opacity-50"
                 >Delete</button>
               </td>
             </tr>

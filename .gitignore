@@ -52,6 +52,13 @@ jobhq.db-wal
 jobhq.db-shm
 logs/
 
+# Runtime diagnostics & ad-hoc data dumps (contain user job data / system info)
+diag-*.txt
+cpu-profile-*.cpuprofile
+applied-jobs-*.csv
+bulk-reject-*.json
+bulk-reject-*.sql
+
 # Personal scripts and configs (not for public release)
 scripts/pull-data.sh
 scripts/push-data.sh

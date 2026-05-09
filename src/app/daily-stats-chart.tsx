@@ -230,8 +230,8 @@ export function DailyStatsChart() {
                 style={{ width: YAXIS_WIDTH, flexShrink: 0, textAlign: 'right', paddingRight: 6 }}
               >
                 <div>&nbsp;</div>
-                <div style={{ color: COLOR_TAILORED, fontWeight: 600 }}>精投</div>
-                <div style={{ color: '#3f3f46', fontWeight: 600 }}>投递</div>
+                <div style={{ color: COLOR_TAILORED, fontWeight: 600 }}>Tailored</div>
+                <div style={{ color: '#3f3f46', fontWeight: 600 }}>Applied</div>
               </div>
               {/* Data grid — one column per day, centered numbers mirror bar centers.
                   First row is the date axis (replaces chart's hidden XAxis ticks). */}

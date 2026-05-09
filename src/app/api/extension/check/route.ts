@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
 import { withExtensionAuth } from '@/lib/route-handler';
 import { findCompanyByNameFuzzy } from '@/lib/repositories/company-repository';
-import { findJobById, findJobBySourceId, listJobs } from '@/lib/repositories/job-repository';
+import { findJobById, findJobBySourceId, listJobsByCompanyId } from '@/lib/repositories/job-repository';
 import { checkDuplicate } from '@/lib/dedup';
 import { STATUS_LABELS } from '@/types/job';
 
@@ -43,7 +43,7 @@ export const POST = withExtensionAuth(async (req) => {
       return extJsonResponse({ exists: false });
     }
 
-    const { jobs: existingJobs } = listJobs({ limit: 10000, offset: 0 });
+    const existingJobs = listJobsByCompanyId(company.id);
     const dedupResult = checkDuplicate(
       {
         company_id: company.id,

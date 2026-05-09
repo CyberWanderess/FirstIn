@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server';
 import { extJsonResponse, extErrorResponse, extOptionsResponse } from '@/lib/extension-auth';
 import { withExtensionAuth } from '@/lib/route-handler';
 import { findCompanyByNameFuzzy } from '@/lib/repositories/company-repository';
-import { findJobById, findJobBySourceId, listJobs } from '@/lib/repositories/job-repository';
+import { findJobById, findJobBySourceId, listJobsByCompanyId } from '@/lib/repositories/job-repository';
 import { checkDuplicate } from '@/lib/dedup';
 import { STATUS_LABELS } from '@/types/job';
+import type { Job } from '@/types';
 
 interface CheckItem {
   title: string;
@@ -22,7 +23,7 @@ export const POST = withExtensionAuth(async (req) => {
       return extErrorResponse('items array is required');
     }
 
-    const { jobs: existingJobs } = listJobs({ limit: 10000, offset: 0 });
+    const jobsByCompany = new Map<number, Job[]>();
 
     const results = body.items.map((item, index) => {
       // Fast path: source_id lookup
@@ -44,6 +45,12 @@ export const POST = withExtensionAuth(async (req) => {
       const company = findCompanyByNameFuzzy(item.company_name);
       if (!company) {
         return { index, exists: false };
+      }
+
+      let existingJobs = jobsByCompany.get(company.id);
+      if (!existingJobs) {
+        existingJobs = listJobsByCompanyId(company.id);
+        jobsByCompany.set(company.id, existingJobs);
       }
 
       const dedupResult = checkDuplicate(

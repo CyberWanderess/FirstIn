@@ -18,6 +18,10 @@ function isStaticAsset(pathname: string): boolean {
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  if (!isStaticAsset(pathname)) {
+    console.log(`[req] ${new Date().toISOString()} ${req.method} ${pathname}`);
+  }
+
   // Skip static assets and public paths
   if (isStaticAsset(pathname) || isPublicPath(pathname)) {
     return NextResponse.next();

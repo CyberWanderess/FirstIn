@@ -432,6 +432,89 @@ export function countJobsByStatus(excludeExpired = true): Record<string, number>
   return counts;
 }
 
+export const MANUAL_ARCHIVE_REASONS = [
+  'Position Expired',
+  'Skill Mismatch',
+  'Cautious Apply',
+  'Eligibility Mismatch',
+  'Not Worth the Effort',
+] as const;
+
+export type ManualArchiveReason = typeof MANUAL_ARCHIVE_REASONS[number];
+
+export interface ArchivedBreakdown {
+  total: number;
+  ats_rejected: number;
+  filtered_total: number;
+  filtered_no_visa: number;
+  filtered_other: number;
+  low_match: number;
+  no_response: number;
+  manual_total: number;
+  manual_by_reason: Record<ManualArchiveReason | 'Other', number>;
+}
+
+const ARCHIVED_LIKE_STATUSES = [
+  'rejected_resume',
+  'archived_filtered',
+  'archived_low_match',
+  'archived_no_response',
+  'archived_manual',
+];
+
+export function countArchivedSubReasons(): ArchivedBreakdown {
+  const db = getDb();
+  const placeholders = ARCHIVED_LIKE_STATUSES.map(() => '?').join(',');
+  const rows = db.prepare(
+    `SELECT status, notes FROM jobs WHERE status IN (${placeholders})`
+  ).all(...ARCHIVED_LIKE_STATUSES) as { status: string; notes: string | null }[];
+
+  const manual_by_reason: Record<string, number> = {
+    ...Object.fromEntries(MANUAL_ARCHIVE_REASONS.map((r) => [r, 0])),
+    Other: 0,
+  };
+  const result: ArchivedBreakdown = {
+    total: rows.length,
+    ats_rejected: 0,
+    filtered_total: 0,
+    filtered_no_visa: 0,
+    filtered_other: 0,
+    low_match: 0,
+    no_response: 0,
+    manual_total: 0,
+    manual_by_reason: manual_by_reason as ArchivedBreakdown['manual_by_reason'],
+  };
+
+  for (const row of rows) {
+    const notes = row.notes ?? '';
+    switch (row.status) {
+      case 'rejected_resume':
+        result.ats_rejected++;
+        break;
+      case 'archived_filtered':
+        result.filtered_total++;
+        if (/does not sponsor visa/i.test(notes)) result.filtered_no_visa++;
+        else result.filtered_other++;
+        break;
+      case 'archived_low_match':
+        result.low_match++;
+        break;
+      case 'archived_no_response':
+        result.no_response++;
+        break;
+      case 'archived_manual': {
+        result.manual_total++;
+        const matched = MANUAL_ARCHIVE_REASONS.find((r) => notes.includes(r));
+        if (matched) manual_by_reason[matched]++;
+        else manual_by_reason.Other++;
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
 export function getRecentJobs(limit = 10): JobWithCompany[] {
   const db = getDb();
   const rows = db.prepare(`

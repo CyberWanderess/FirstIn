@@ -3,10 +3,11 @@ import { requireAuthPage } from '@/lib/auth';
 import { runWithUser } from '@/lib/db';
 import { ensureInitialized } from '@/lib/init';
 import { config } from '@/lib/config';
-import { countJobsByStatus } from '@/lib/repositories/job-repository';
+import { countJobsByStatus, countArchivedSubReasons } from '@/lib/repositories/job-repository';
 import { getRecentOperations } from '@/lib/repositories/operation-log-repository';
 import { getSetting } from '@/lib/repositories/settings-repository';
 import { CrawlTrigger } from '@/components/crawl-trigger';
+import { DashboardArchivedCard } from '@/components/dashboard-archived-card';
 import { DailyStatsChart } from './daily-stats-chart';
 import { StatusBadge } from '@/components/status-badge';
 import { STATUS_LABELS } from '@/types';
@@ -15,15 +16,10 @@ import type { ReactNode } from 'react';
 
 const STATUS_GROUPS = [
   { label: 'Pending Eval', statuses: ['pending_eval'], color: 'bg-yellow-100 text-yellow-800', actionLabel: 'Evaluate →', actionHref: '/workspace?tab=evaluation' },
-  { label: 'Flagged', statuses: ['flagged'], color: 'bg-amber-100 text-amber-800', actionLabel: 'Review →', actionHref: '/jobs?status=flagged' },
-  { label: 'Deep Analysis', statuses: ['pending_deep_analysis'], color: 'bg-purple-100 text-purple-800', actionLabel: 'Analyze →', actionHref: '/workspace?tab=deep-analysis' },
-  { label: 'Tailored', statuses: ['ready_to_apply_tailored'], color: 'bg-indigo-100 text-indigo-800' },
-  { label: 'Ready to Apply', statuses: ['ready_to_apply'], color: 'bg-green-100 text-green-800' },
+  { label: 'Strong Match', statuses: ['pending_deep_analysis'], color: 'bg-purple-100 text-purple-800', actionLabel: 'Analyze →', actionHref: '/workspace?tab=deep-analysis' },
+  { label: 'Match', statuses: ['ready_to_apply', 'ready_to_apply_tailored'], color: 'bg-green-100 text-green-800' },
   { label: 'Applied', statuses: ['applied'], color: 'bg-cyan-100 text-cyan-800' },
   { label: 'Interviewing', statuses: ['interviewing'], color: 'bg-orange-100 text-orange-800' },
-  { label: 'Offer', statuses: ['offer'], color: 'bg-emerald-100 text-emerald-800' },
-  { label: 'Rejected (Resume)', statuses: ['rejected_resume'], color: 'bg-red-100 text-red-800' },
-  { label: 'Archived', statuses: ['archived_filtered', 'archived_low_match', 'archived_no_response'], color: 'bg-zinc-100 text-zinc-600' },
 ] as const;
 
 export const dynamic = 'force-dynamic';
@@ -34,13 +30,13 @@ export default async function DashboardPage() {
   return runWithUser(user.id, () => {
   ensureInitialized();
   const statusCounts = countJobsByStatus();
+  const archivedBreakdown = countArchivedSubReasons();
   const batchOps = getRecentOperations(undefined, 10, 'batch');
   const jobOps = getRecentOperations(undefined, 10, 'job');
 
   const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
   const pendingEval = statusCounts['pending_eval'] || 0;
-  const flaggedCount = statusCounts['flagged'] || 0;
-  const readyToApply = statusCounts['ready_to_apply'] || 0;
+  const readyToApply = (statusCounts['ready_to_apply'] || 0) + (statusCounts['ready_to_apply_tailored'] || 0);
 
   // Find last crawl/import operation
   const lastActivity = config.enableCrawler
@@ -81,11 +77,8 @@ export default async function DashboardPage() {
             {pendingEval > 0 && (
               <span className="text-yellow-600">Pending eval: {pendingEval}</span>
             )}
-            {flaggedCount > 0 && (
-              <span className="text-amber-600">Flagged: {flaggedCount}</span>
-            )}
             {readyToApply > 0 && (
-              <span className="text-green-600">Ready to apply: {readyToApply}</span>
+              <span className="text-green-600">Match: {readyToApply}</span>
             )}
           </div>
           {config.enableCrawler && <CrawlTrigger />}
@@ -122,6 +115,12 @@ export default async function DashboardPage() {
           );
         })}
       </div>
+
+      {/* Archived breakdown */}
+      <DashboardArchivedCard
+        breakdown={archivedBreakdown}
+        appliedActive={(statusCounts['applied'] || 0) + (statusCounts['interviewing'] || 0) + (statusCounts['offer'] || 0)}
+      />
 
       {/* Recent activity — split into Batch Operations and Job Activity */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -9,7 +9,7 @@ const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   applied:                ['interviewing', 'rejected_resume', 'archived_no_response', 'archived_manual'],
   interviewing:           ['offer', 'rejected_resume'],
   offer:                  [],
-  rejected_resume:        [],
+  rejected_resume:        ['applied'],
   archived_filtered:      ['pending_eval'],
   archived_low_match:     ['pending_eval'],
   archived_no_response:   [],

@@ -294,7 +294,6 @@ data/
 - **:4001 perf fix** — `/api/extension/check` and `/check-batch` slow path no longer load the full 10 k jobs per ~8 s extension poll; switched to indexed `listJobsByCompanyId` + per-batch per-company cache. CPU profile previously showed 21 % GC and the filter-builder at 3 s self-time over a 17.5 s window
 - **`perf-pulse` PM2 process** — 60 s lightweight snapshot of fd / vmsize / accept-queue into `~/perf-pulse.log` to distinguish polling-overload slowness from the separate epoll-not-accepting fd-leak stall pattern
 - **Dashboard archived breakdown** — compact card summarizing `rejected_resume` / `archived_filtered` (no-visa vs other) / `archived_low_match` / `archived_no_response` / `archived_manual` (with manual reason tally + estimated post-eval mismatch rate)
-- **Status label rework** — `pending_deep_analysis` → "Strong Match", `ready_to_apply` → "Match", `rejected_resume` → "ATS Filter"; dashboard grid collapsed to the daily-actionable subset; allow `rejected_resume → applied` re-open
 - **Per-request log + SIGUSR2 cpu profiler** — middleware emits `[req] <ts> <method> <path>` for every non-static request; `instrumentation.ts` registers a SIGUSR2 → 5 s V8 profile dumped to `cpu-profile-<ts>.cpuprofile`
 - **`diag-stuck.sh` PID resolution** — five fallback strategies (fuser → ss → lsof → pm2 child walk → pgrep) because Next 16's worker cmdline doesn't reliably contain "next-server" or "4001"
 - **DB pragmas + `getJobCount` cleanup** — WAL/synchronous/mmap tightening; admin-context fallback no longer leaks a Database handle per call

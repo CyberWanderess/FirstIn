@@ -289,7 +289,19 @@ data/
 
 ## Changelog
 
-### Current — Auto-Eval & Customization Era (2026-04-29)
+### Current — Stability & UX Refinement (2026-05-09)
+
+- **:4001 perf fix** — `/api/extension/check` and `/check-batch` slow path no longer load the full 10 k jobs per ~8 s extension poll; switched to indexed `listJobsByCompanyId` + per-batch per-company cache. CPU profile previously showed 21 % GC and the filter-builder at 3 s self-time over a 17.5 s window
+- **`perf-pulse` PM2 process** — 60 s lightweight snapshot of fd / vmsize / accept-queue into `~/perf-pulse.log` to distinguish polling-overload slowness from the separate epoll-not-accepting fd-leak stall pattern
+- **Dashboard archived breakdown** — compact card summarizing `rejected_resume` / `archived_filtered` (no-visa vs other) / `archived_low_match` / `archived_no_response` / `archived_manual` (with manual reason tally + estimated post-eval mismatch rate)
+- **Status label rework** — `pending_deep_analysis` → "Strong Match", `ready_to_apply` → "Match", `rejected_resume` → "ATS Filter"; dashboard grid collapsed to the daily-actionable subset; allow `rejected_resume → applied` re-open
+- **Per-request log + SIGUSR2 cpu profiler** — middleware emits `[req] <ts> <method> <path>` for every non-static request; `instrumentation.ts` registers a SIGUSR2 → 5 s V8 profile dumped to `cpu-profile-<ts>.cpuprofile`
+- **`diag-stuck.sh` PID resolution** — five fallback strategies (fuser → ss → lsof → pm2 child walk → pgrep) because Next 16's worker cmdline doesn't reliably contain "next-server" or "4001"
+- **DB pragmas + `getJobCount` cleanup** — WAL/synchronous/mmap tightening; admin-context fallback no longer leaks a Database handle per call
+- **Cookie `Secure` derives from request protocol** — auto-enables when an HTTPS reverse proxy is in front, doesn't break direct HTTP access
+- **PM2 guardrails** — `max_memory_restart: '1G'` + `cron_restart: '0 */6 * * *'` self-clear long-tail VmSize bloat
+
+### v0.5.0 — Auto-Eval & Customization Era (2026-04-29)
 
 - **Auto-eval worker** — 3-phase background pipeline (company research, JD cleanup, evaluation) via `claude -p`; manual / auto / ultra modes
 - **Auto-eval audit log** — every run records tokens + cost + duration; surfaced in the admin UI
